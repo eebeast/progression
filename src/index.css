@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Apple-derived: single blue accent, near-black ink, parchment + white cards. */
+  --background: #f5f5f7;
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
+  --foreground: #1d1d1f;
+  --muted: #ececee;
+  --muted-foreground: #6e6e73;
+  --border: #dddde0;
+  --input: #dddde0;
+  --primary: #0066cc;
+  --primary-foreground: #ffffff;
+  --ring: #0071e3;
+  --success: #248a3d;
+  --success-foreground: #ffffff;
+  --destructive: #d70015;
+  --destructive-foreground: #ffffff;
+  --radius: 1rem;
+}
+
+.dark {
+  /* Apple's dark tiles extended into a full dark theme. */
+  --background: #1c1c1e;
+  --card: #2a2a2c;
+  --card-foreground: #f5f5f7;
+  --foreground: #f5f5f7;
+  --muted: #2f2f31;
+  --muted-foreground: #98989d;
+  --border: #3a3a3c;
+  --input: #3a3a3c;
+  --primary: #2997ff;
+  --primary-foreground: #ffffff;
+  --ring: #2997ff;
+  --success: #30d158;
+  --success-foreground: #06210f;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+}
+
+/*
+ * Accent presets — recolor only the interactive accent (--primary / --ring),
+ * independently per light/dark. Blue is the default (base :root / .dark values).
+ * `:not(.dark)` scopes light overrides so dark wins without source-order tricks.
+ */
+:root:not(.dark)[data-accent='purple'] {
+  --primary: #5856d6;
+  --primary-foreground: #ffffff;
+  --ring: #5856d6;
+}
+.dark[data-accent='purple'] {
+  --primary: #7d7af5;
+  --primary-foreground: #ffffff;
+  --ring: #7d7af5;
+}
+
+:root:not(.dark)[data-accent='orange'] {
+  --primary: #c2410c; /* deep enough to read as link text + carry white fill text */
+  --primary-foreground: #ffffff;
+  --ring: #c2410c;
+}
+.dark[data-accent='orange'] {
+  --primary: #ff9f0a; /* bright on dark; pairs with dark fill text */
+  --primary-foreground: #1d1d1f;
+  --ring: #ff9f0a;
+}
+
+:root:not(.dark)[data-accent='green'] {
+  --primary: #1e7d34; /* deep enough to read as link text in light */
+  --primary-foreground: #ffffff;
+  --ring: #1e7d34;
+}
+.dark[data-accent='green'] {
+  --primary: #30d158; /* Apple system green, bright on dark + dark fill text */
+  --primary-foreground: #06210f;
+  --ring: #30d158;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* App-scaled reading size; Inter's rounded "a" as a fallback nicety. */
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.01em;
+    font-feature-settings: 'ss03';
+    /* Prevent overscroll bounce revealing wrong color */
+    overscroll-behavior-y: none;
+  }
+
+  /* Tighter optical tracking on titles. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Inputs at >=16px to avoid iOS zoom */
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
