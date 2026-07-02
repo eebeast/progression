@@ -116,6 +116,8 @@ export interface WorkoutRepository {
   addSet(input: NewSetInput): Promise<void>;
   updateSet(id: string, data: Partial<Pick<ExerciseLog, 'weight' | 'reps'>>): Promise<void>;
   deleteSet(id: string): Promise<void>;
+  /** Persist a new set order (ids in display order) by renumbering the sets. */
+  reorderSets(orderedIds: string[]): Promise<void>;
 
   // runs
   observeRuns(): Observable<Run[]>;

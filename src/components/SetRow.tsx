@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Check, Trash2, X } from 'lucide-react';
+import { Check, GripVertical, Trash2, X } from 'lucide-react';
 import type { ExerciseLog, Unit } from '@/types';
 import { Stepper } from '@/components/Stepper';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,19 @@ interface SetRowProps {
   unit: Unit;
   weightIncrement: number;
   flash?: boolean;
+  dragging?: boolean;
+  /** Pointer handlers for the drag handle; when omitted, the row isn't draggable. */
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  style?: React.CSSProperties;
   onSave: (patch: { weight: number; reps: number }) => void;
   onDelete: () => void;
 }
 
-/** A logged set. Tap to edit weight/reps inline or delete. */
-export function SetRow({ log, unit, weightIncrement, flash, onSave, onDelete }: SetRowProps) {
+/** A logged set. Tap to edit weight/reps inline; drag the handle to reorder. */
+export const SetRow = React.forwardRef<HTMLDivElement, SetRowProps>(function SetRow(
+  { log, unit, weightIncrement, flash, dragging, dragHandleProps, style, onSave, onDelete },
+  ref,
+) {
   const [editing, setEditing] = React.useState(false);
   const [weight, setWeight] = React.useState(log.weight);
   const [reps, setReps] = React.useState(log.reps);
@@ -29,7 +36,7 @@ export function SetRow({ log, unit, weightIncrement, flash, onSave, onDelete }: 
 
   if (editing) {
     return (
-      <div className="rounded-lg border border-border bg-card p-3">
+      <div ref={ref} style={style} className="rounded-lg border border-border bg-card p-3">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-muted-foreground">Set {log.setNumber}</span>
           <button
@@ -80,23 +87,44 @@ export function SetRow({ log, unit, weightIncrement, flash, onSave, onDelete }: 
     );
   }
 
+  const showHandle = !!dragHandleProps;
+
   return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
+    <div
+      ref={ref}
+      style={style}
       className={cn(
-        'flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left',
-        'transition-colors hover:bg-muted/50',
+        'flex items-stretch rounded-lg border border-border bg-card transition-shadow',
+        dragging && 'relative z-10 shadow-lg',
         flash && 'animate-set-flash',
       )}
     >
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-sm font-semibold tabular-nums text-muted-foreground">
-        {log.setNumber}
-      </span>
-      <span className="text-lg font-semibold tabular-nums">
-        {log.weight}
-        {unit} <span className="text-muted-foreground">×</span> {log.reps}
-      </span>
-    </button>
+      {showHandle && (
+        <button
+          type="button"
+          aria-label={`Drag to reorder set ${log.setNumber}`}
+          {...dragHandleProps}
+          className="flex shrink-0 touch-none cursor-grab items-center rounded-l-lg pl-2 pr-1 text-muted-foreground/50 transition-colors hover:text-foreground active:cursor-grabbing"
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={cn(
+          'flex flex-1 items-center justify-between gap-3 py-3 pr-4 text-left transition-colors hover:bg-muted/50',
+          showHandle ? 'rounded-r-lg pl-1' : 'rounded-lg pl-4',
+        )}
+      >
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold tabular-nums text-muted-foreground">
+          {log.setNumber}
+        </span>
+        <span className="text-lg font-semibold tabular-nums">
+          {log.weight}
+          {unit} <span className="text-muted-foreground">×</span> {log.reps}
+        </span>
+      </button>
+    </div>
   );
-}
+});

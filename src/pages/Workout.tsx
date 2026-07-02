@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Stepper } from '@/components/Stepper';
-import { SetRow } from '@/components/SetRow';
+import { SetList } from '@/components/SetList';
 import { cn } from '@/lib/utils';
 import type { ExerciseLog, TemplateExercise, WorkoutTemplate } from '@/types';
 
@@ -48,7 +48,12 @@ export default function Workout() {
   const [flashId, setFlashId] = React.useState<string | null>(null);
 
   const currentLogs = React.useMemo(
-    () => (current ? allLogs.filter((l) => l.exerciseId === current.exerciseId) : []),
+    () =>
+      current
+        ? allLogs
+            .filter((l) => l.exerciseId === current.exerciseId)
+            .sort((a, b) => a.setNumber - b.setNumber)
+        : [],
     [allLogs, current],
   );
 
@@ -72,17 +77,21 @@ export default function Workout() {
   const isStarted = current ? started.has(current.exerciseId) || currentLogs.length > 0 : false;
   const targetMet = current ? currentLogs.length >= current.targetSets : false;
 
-  // Pre-fill weight when the exercise changes: last set this session, else last workout.
+  // Pre-fill weight and reps when the exercise changes: last set this session,
+  // else the matching set from the last workout.
   React.useEffect(() => {
     if (!current) return;
     if (currentLogs.length > 0) {
-      setWeight(currentLogs[currentLogs.length - 1].weight);
+      const last = currentLogs[currentLogs.length - 1];
+      setWeight(last.weight);
+      setReps(last.reps);
     } else if (lastWorkout && lastWorkout.sets.length > 0) {
       setWeight(lastWorkout.sets[0].weight);
+      setReps(lastWorkout.sets[0].reps);
     } else {
       setWeight(0);
+      setReps(0);
     }
-    setReps(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.exerciseId, lastWorkout?.session.id]);
 
@@ -135,8 +144,7 @@ export default function Workout() {
       weight,
       reps,
     });
-    // Keep weight pre-filled, clear reps, stay ready for the next set.
-    setReps(0);
+    // Keep both weight and reps pre-filled, ready to repeat the same set.
   };
 
   const goTo = (i: number) => {
@@ -243,19 +251,15 @@ export default function Workout() {
 
           {/* Logged sets */}
           {currentLogs.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {currentLogs.map((log) => (
-                <SetRow
-                  key={log.id}
-                  log={log}
-                  unit={settings.unit}
-                  weightIncrement={settings.weightIncrement}
-                  flash={flashId === log.id}
-                  onSave={(patch) => repo.updateSet(log.id, patch)}
-                  onDelete={() => repo.deleteSet(log.id)}
-                />
-              ))}
-            </div>
+            <SetList
+              logs={currentLogs}
+              unit={settings.unit}
+              weightIncrement={settings.weightIncrement}
+              flashId={flashId}
+              onSave={(id, patch) => repo.updateSet(id, patch)}
+              onDelete={(id) => repo.deleteSet(id)}
+              onReorder={(ids) => repo.reorderSets(ids)}
+            />
           )}
 
           {/* Set entry — only once started */}

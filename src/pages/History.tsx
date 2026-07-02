@@ -17,15 +17,16 @@ export default function HistoryPage() {
     <div>
       <PageHeader title="History" />
 
-      {sessions.length === 0 ? (
-        <EmptyState
-          icon={<HistoryIcon className="h-10 w-10" />}
-          title="No workouts yet"
-          description="Once you finish a workout, it'll show up here."
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2">
-          {sessions.map((s) => {
+      <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+        {sessions.length === 0 ? (
+          <EmptyState
+            icon={<HistoryIcon className="h-10 w-10" />}
+            title="No workouts yet"
+            description="Once you finish a workout, it'll show up here."
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2">
+            {sessions.map((s) => {
             const duration = formatDuration((s.endTime ?? s.startTime) - s.startTime);
             return (
               <button
@@ -46,9 +47,10 @@ export default function HistoryPage() {
                 </div>
               </button>
             );
-          })}
-        </div>
-      )}
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

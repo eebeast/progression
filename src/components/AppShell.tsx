@@ -61,9 +61,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cn(
             'mx-auto w-full flex-1',
             // Focused logging flow stays a narrow, centered column.
-            hideNav
-              ? 'max-w-2xl'
-              : 'max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl',
+            // Nav pages fill the content area so the sticky header reads as a
+            // full-width bar; each page centers its own body content.
+            hideNav && 'max-w-2xl',
             // Leave room for the mobile tab bar; not needed once the sidebar shows.
             !hideNav && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10',
           )}

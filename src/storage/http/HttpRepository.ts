@@ -117,6 +117,9 @@ export class HttpRepository implements WorkoutRepository {
   deleteSet(_id: string): Promise<void> {
     return TODO();
   }
+  reorderSets(_orderedIds: string[]): Promise<void> {
+    return TODO();
+  }
 
   // runs
   observeRuns(): Observable<Run[]> {

@@ -63,7 +63,10 @@ export function Stepper({
   return (
     <div className="flex flex-col gap-2">
       {label && (
-        <span className="text-center text-sm font-medium text-muted-foreground">{label}</span>
+        <span className="text-center text-sm font-medium text-muted-foreground">
+          {label}
+          {unit && <span className="text-muted-foreground/70"> ({unit})</span>}
+        </span>
       )}
       <div className="flex items-stretch gap-2">
         <button
@@ -71,41 +74,33 @@ export function Stepper({
           aria-label={`Decrease ${label}`}
           onClick={() => bump(-1)}
           className={cn(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-card',
+            'flex h-14 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card',
             'text-foreground transition-colors hover:bg-muted active:bg-muted/70',
           )}
         >
           <Minus className="h-5 w-5" />
         </button>
 
-        <div className="relative flex-1">
-          <input
-            inputMode={decimal ? 'decimal' : 'numeric'}
-            pattern={decimal ? '[0-9]*[.,]?[0-9]*' : '[0-9]*'}
-            value={text}
-            autoFocus={autoFocus}
-            onFocus={(e) => e.currentTarget.select()}
-            onChange={(e) => setText(e.target.value)}
-            onBlur={(e) => commit(e.target.value)}
-            className={cn(
-              'h-14 w-full rounded-lg border border-input bg-card text-center text-2xl font-bold tabular-nums',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              unit && 'pr-12',
-            )}
-          />
-          {unit && (
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-              {unit}
-            </span>
+        <input
+          inputMode={decimal ? 'decimal' : 'numeric'}
+          pattern={decimal ? '[0-9]*[.,]?[0-9]*' : '[0-9]*'}
+          value={text}
+          autoFocus={autoFocus}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => commit(e.target.value)}
+          className={cn(
+            'h-14 w-full min-w-0 flex-1 rounded-lg border border-input bg-card px-1 text-center text-2xl font-bold tabular-nums',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
-        </div>
+        />
 
         <button
           type="button"
           aria-label={`Increase ${label}`}
           onClick={() => bump(1)}
           className={cn(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-border bg-card',
+            'flex h-14 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card',
             'text-foreground transition-colors hover:bg-muted active:bg-muted/70',
           )}
         >
