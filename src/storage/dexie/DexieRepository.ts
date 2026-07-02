@@ -368,6 +368,15 @@ export class DexieRepository implements WorkoutRepository {
     });
   }
 
+  /** Persist a new set order by renumbering each set to its position (1-based). */
+  async reorderSets(orderedIds: string[]): Promise<void> {
+    await this.db.transaction('rw', this.db.logs, async () => {
+      await Promise.all(
+        orderedIds.map((id, i) => this.db.logs.update(id, { setNumber: i + 1 })),
+      );
+    });
+  }
+
   /* ------------------------------- runs ------------------------------- */
 
   observeRuns(): Observable<Run[]> {
