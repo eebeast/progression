@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Stepper } from '@/components/Stepper';
 import { SetList } from '@/components/SetList';
 import { cn } from '@/lib/utils';
-import type { ExerciseLog, TemplateExercise, WorkoutTemplate } from '@/types';
+import { formatSetValue } from '@/utils/format';
+import type { ExerciseLog, Metric, TemplateExercise, WorkoutTemplate } from '@/types';
 
 export default function Workout() {
   const { sessionId = '' } = useParams();
@@ -76,6 +77,7 @@ export default function Workout() {
 
   const isStarted = current ? started.has(current.exerciseId) || currentLogs.length > 0 : false;
   const targetMet = current ? currentLogs.length >= current.targetSets : false;
+  const metric: Metric = current?.metric ?? 'reps';
 
   // Pre-fill weight and reps when the exercise changes: last set this session,
   // else the matching set from the last workout.
@@ -143,6 +145,7 @@ export default function Workout() {
       exerciseName: current.name,
       weight,
       reps,
+      metric,
     });
     // Keep both weight and reps pre-filled, ready to repeat the same set.
   };
@@ -209,7 +212,7 @@ export default function Workout() {
               <h2 className="text-xl font-bold leading-tight">{current.name}</h2>
               <div className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  {current.targetSets} sets · {current.targetRepRange} reps
+                  {current.targetSets} sets · {current.targetRepRange} {metric === 'time' ? 'sec' : 'reps'}
                 </span>
                 {targetMet && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
@@ -239,8 +242,8 @@ export default function Workout() {
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
                 {lastWorkout.sets.map((s) => (
                   <span key={s.id}>
-                    {s.weight}
-                    {settings.unit} × {s.reps}
+                    {s.weight > 0 && `${s.weight}${settings.unit} × `}
+                    {formatSetValue(s.reps, s.metric)}
                   </span>
                 ))}
               </div>
@@ -273,7 +276,19 @@ export default function Workout() {
                 unit={settings.unit}
                 decimal
               />
-              <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+              {metric === 'time' ? (
+                <Stepper
+                  label="Time"
+                  unit="sec"
+                  value={reps}
+                  onChange={setReps}
+                  step={5}
+                  min={0}
+                  autoFocus
+                />
+              ) : (
+                <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+              )}
             </div>
           )}
 

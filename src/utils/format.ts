@@ -1,3 +1,5 @@
+import type { Metric } from '@/types';
+
 export function newId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -16,6 +18,16 @@ export function formatDuration(ms: number): string {
     return `${hours}h ${String(minutes).padStart(2, '0')}m`;
   }
   return `${minutes}m`;
+}
+
+/** Format a set's measured value: a plain rep count, or a duration like "45s" / "1m 30s". */
+export function formatSetValue(value: number, metric?: Metric): string {
+  if (metric !== 'time') return String(value);
+  const total = Math.max(0, Math.round(value));
+  if (total < 60) return `${total}s`;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
 }
 
 /** Run duration as M:SS, or H:MM:SS past an hour. */

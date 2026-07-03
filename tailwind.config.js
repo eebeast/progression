@@ -34,11 +34,12 @@ export default {
         ring: alpha('--ring'),
       },
       borderRadius: {
-        // Radius grammar: cards/inputs = 16px; chips/small = 10px; pills via rounded-full.
+        // Radius grammar: cards/inputs = 20px; chips/small = 14px; panes = 24px; pills via rounded-full.
         sm: 'calc(var(--radius) - 6px)',
         md: 'calc(var(--radius) - 6px)',
         lg: 'var(--radius)',
         xl: 'var(--radius)',
+        '2xl': 'calc(var(--radius) + 4px)',
       },
       fontFamily: {
         sans: [

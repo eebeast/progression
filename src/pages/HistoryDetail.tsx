@@ -7,7 +7,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { FEELING_EMOJI } from '@/components/FeelingPicker';
-import { formatDuration, formatLongDate } from '@/utils/format';
+import { formatDuration, formatLongDate, formatSetValue } from '@/utils/format';
 import type { ExerciseLog } from '@/types';
 
 export default function HistoryDetail() {
@@ -96,8 +96,8 @@ export default function HistoryDetail() {
                   >
                     <span className="text-muted-foreground">Set {s.setNumber}</span>
                     <span className="font-medium">
-                      {s.weight}
-                      {settings.unit} × {s.reps}
+                      {s.weight > 0 && `${s.weight}${settings.unit} × `}
+                      {formatSetValue(s.reps, s.metric)}
                     </span>
                   </div>
                 ))}

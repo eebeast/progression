@@ -344,6 +344,7 @@ export class DexieRepository implements WorkoutRepository {
       setNumber: existing.length + 1,
       weight: input.weight,
       reps: input.reps,
+      metric: input.metric ?? 'reps',
       timestamp: Date.now(),
     };
     await this.db.logs.put(log);

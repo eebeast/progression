@@ -3,6 +3,8 @@ export type Theme = 'light' | 'dark' | 'system';
 export type Accent = 'blue' | 'purple' | 'orange' | 'green';
 export type Feeling = 'good' | 'ok' | 'rough';
 export type SessionStatus = 'active' | 'completed';
+/** How a set is measured: repetitions, or a hold/duration in seconds. */
+export type Metric = 'reps' | 'time';
 
 export interface Settings {
   id: 'singleton';
@@ -24,7 +26,8 @@ export interface TemplateExercise {
   exerciseId: string;
   name: string;
   targetSets: number;
-  targetRepRange: string;
+  targetRepRange: string; // reps or seconds range, interpreted per `metric`
+  metric?: Metric; // defaults to 'reps' when absent (back-compat)
   order: number;
 }
 
@@ -57,7 +60,8 @@ export interface ExerciseLog {
   exerciseName: string;
   setNumber: number;
   weight: number;
-  reps: number;
+  reps: number; // rep count, or duration in seconds when metric === 'time'
+  metric?: Metric; // defaults to 'reps' when absent (back-compat)
   timestamp: number;
 }
 

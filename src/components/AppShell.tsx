@@ -18,10 +18,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hideNav = HIDE_NAV_PREFIXES.some((p) => pathname.startsWith(p));
 
   return (
-    <div className="min-h-[100dvh] bg-background md:flex">
+    <div
+      className={cn(
+        'min-h-[100dvh] bg-background md:flex',
+        // Desktop: floating sidebar + inset content pane (macOS-style panels).
+        !hideNav && 'md:h-[100dvh] md:gap-2 md:overflow-hidden md:p-2',
+      )}
+    >
       {/* Sidebar nav (tablet + desktop) */}
       {!hideNav && (
-        <aside className="sticky top-0 hidden h-[100dvh] w-56 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-6 backdrop-blur-[20px] backdrop-saturate-[1.8] md:flex lg:w-64">
+        <aside className="hidden h-full w-56 shrink-0 flex-col rounded-2xl border border-border bg-card/70 px-3 py-6 backdrop-blur-[20px] backdrop-saturate-[1.8] md:flex lg:w-64">
           <NavLink
             to="/"
             aria-label="Go to home"
@@ -55,8 +61,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
       )}
 
-      {/* Content area */}
-      <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col">
+      {/* Content area — inset, rounded, self-scrolling pane on desktop. */}
+      <div
+        className={cn(
+          'flex min-w-0 flex-1 flex-col',
+          hideNav
+            ? 'min-h-[100dvh]'
+            : 'min-h-[100dvh] md:h-full md:min-h-0 md:overflow-y-auto md:rounded-2xl md:border md:border-border',
+        )}
+      >
         <main
           className={cn(
             'mx-auto w-full flex-1',
