@@ -2,6 +2,7 @@ import type {
   Exercise,
   ExerciseLog,
   Feeling,
+  Metric,
   Run,
   Settings,
   TemplateExercise,
@@ -46,6 +47,7 @@ export interface NewSetInput {
   exerciseName: string;
   weight: number;
   reps: number;
+  metric?: Metric;
 }
 
 export interface NewRunInput {

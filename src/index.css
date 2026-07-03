@@ -21,7 +21,7 @@
   --success-foreground: #ffffff;
   --destructive: #d70015;
   --destructive-foreground: #ffffff;
-  --radius: 1rem;
+  --radius: 1.25rem;
 }
 
 .dark {

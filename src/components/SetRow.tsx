@@ -4,6 +4,7 @@ import type { ExerciseLog, Unit } from '@/types';
 import { Stepper } from '@/components/Stepper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { formatSetValue } from '@/utils/format';
 
 interface SetRowProps {
   log: ExerciseLog;
@@ -23,6 +24,7 @@ export const SetRow = React.forwardRef<HTMLDivElement, SetRowProps>(function Set
   { log, unit, weightIncrement, flash, dragging, dragHandleProps, style, onSave, onDelete },
   ref,
 ) {
+  const isTime = log.metric === 'time';
   const [editing, setEditing] = React.useState(false);
   const [weight, setWeight] = React.useState(log.weight);
   const [reps, setReps] = React.useState(log.reps);
@@ -57,7 +59,11 @@ export const SetRow = React.forwardRef<HTMLDivElement, SetRowProps>(function Set
             unit={unit}
             decimal
           />
-          <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} />
+          {isTime ? (
+            <Stepper label="Time" unit="sec" value={reps} onChange={setReps} step={5} min={0} />
+          ) : (
+            <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} />
+          )}
         </div>
         <div className="mt-3 flex gap-2">
           <Button
@@ -121,8 +127,13 @@ export const SetRow = React.forwardRef<HTMLDivElement, SetRowProps>(function Set
           {log.setNumber}
         </span>
         <span className="text-lg font-semibold tabular-nums">
-          {log.weight}
-          {unit} <span className="text-muted-foreground">×</span> {log.reps}
+          {log.weight > 0 && (
+            <>
+              {log.weight}
+              {unit} <span className="text-muted-foreground">×</span>{' '}
+            </>
+          )}
+          {formatSetValue(log.reps, log.metric)}
         </span>
       </button>
     </div>
