@@ -71,3 +71,10 @@ export interface Run {
   feeling?: Feeling | null;
   createdAt: number;
 }
+
+export interface BodyWeightEntry {
+  id: string;
+  date: number;
+  weight: number; // stored in settings.unit active at entry time, like lifts
+  createdAt: number;
+}

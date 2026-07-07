@@ -8,6 +8,7 @@
  * `createRun`, …) with `fetch()` calls to a JSON API. Nothing here is wired up.
  */
 import type {
+  BodyWeightEntry,
   Exercise,
   ExerciseLog,
   Run,
@@ -17,6 +18,7 @@ import type {
 } from '@/types';
 import type {
   LastPerformed,
+  NewBodyWeightInput,
   NewRunInput,
   NewSetInput,
   Observable,
@@ -135,6 +137,23 @@ export class HttpRepository implements WorkoutRepository {
     return TODO();
   }
   deleteRun(_id: string): Promise<void> {
+    return TODO();
+  }
+
+  // body weight
+  observeBodyWeights(): Observable<BodyWeightEntry[]> {
+    return TODO();
+  }
+  addBodyWeight(_input: NewBodyWeightInput): Promise<void> {
+    return TODO();
+  }
+  updateBodyWeight(
+    _id: string,
+    _patch: Partial<Pick<BodyWeightEntry, 'date' | 'weight'>>,
+  ): Promise<void> {
+    return TODO();
+  }
+  deleteBodyWeight(_id: string): Promise<void> {
     return TODO();
   }
 

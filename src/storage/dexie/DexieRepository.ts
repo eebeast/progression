@@ -1,5 +1,6 @@
 import Dexie, { liveQuery, type Table } from 'dexie';
 import type {
+  BodyWeightEntry,
   Exercise,
   ExerciseLog,
   Run,
@@ -12,6 +13,7 @@ import { newId } from '@/utils/format';
 import { DEFAULT_SETTINGS, PROGRAM } from '@/storage/defaults';
 import type {
   LastPerformed,
+  NewBodyWeightInput,
   NewRunInput,
   NewSetInput,
   Observable,
@@ -29,6 +31,7 @@ class WorkoutDB extends Dexie {
   sessions!: Table<WorkoutSession, string>;
   logs!: Table<ExerciseLog, string>;
   runs!: Table<Run, string>;
+  bodyWeights!: Table<BodyWeightEntry, string>;
 
   constructor() {
     super('workout-tracker');
@@ -42,6 +45,10 @@ class WorkoutDB extends Dexie {
     // v2: add manual run logging. Existing stores carry over unchanged.
     this.version(2).stores({
       runs: 'id, date, createdAt',
+    });
+    // v3: add a body-weight log. Existing stores carry over unchanged.
+    this.version(3).stores({
+      bodyWeights: 'id, date',
     });
   }
 }
@@ -57,6 +64,7 @@ interface BackupShape {
     sessions: WorkoutSession[];
     logs: ExerciseLog[];
     runs?: Run[];
+    bodyWeights?: BodyWeightEntry[];
   };
 }
 
@@ -412,23 +420,54 @@ export class DexieRepository implements WorkoutRepository {
     await this.db.runs.delete(id);
   }
 
+  /* --------------------------- body weight --------------------------- */
+
+  observeBodyWeights(): Observable<BodyWeightEntry[]> {
+    return liveQuery(async () => {
+      const entries = await this.db.bodyWeights.toArray();
+      return entries.sort((a, b) => b.date - a.date || b.createdAt - a.createdAt);
+    });
+  }
+
+  async addBodyWeight(input: NewBodyWeightInput): Promise<void> {
+    const entry: BodyWeightEntry = {
+      id: newId(),
+      date: input.date,
+      weight: input.weight,
+      createdAt: Date.now(),
+    };
+    await this.db.bodyWeights.put(entry);
+  }
+
+  async updateBodyWeight(
+    id: string,
+    patch: Partial<Pick<BodyWeightEntry, 'date' | 'weight'>>,
+  ): Promise<void> {
+    await this.db.bodyWeights.update(id, patch);
+  }
+
+  async deleteBodyWeight(id: string): Promise<void> {
+    await this.db.bodyWeights.delete(id);
+  }
+
   /* ------------------------------ backup ------------------------------ */
 
   async exportData(): Promise<void> {
-    const [settings, exercises, templates, sessions, logs, runs] = await Promise.all([
+    const [settings, exercises, templates, sessions, logs, runs, bodyWeights] = await Promise.all([
       this.db.settings.toArray(),
       this.db.exercises.toArray(),
       this.db.templates.toArray(),
       this.db.sessions.toArray(),
       this.db.logs.toArray(),
       this.db.runs.toArray(),
+      this.db.bodyWeights.toArray(),
     ]);
 
     const backup: BackupShape = {
       app: 'workout-tracker',
       version: 1,
       exportedAt: Date.now(),
-      data: { settings, exercises, templates, sessions, logs, runs },
+      data: { settings, exercises, templates, sessions, logs, runs, bodyWeights },
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -452,11 +491,19 @@ export class DexieRepository implements WorkoutRepository {
       throw new Error('This file is not a valid workout backup.');
     }
 
-    const { settings, exercises, templates, sessions, logs, runs } = parsed.data;
+    const { settings, exercises, templates, sessions, logs, runs, bodyWeights } = parsed.data;
 
     await this.db.transaction(
       'rw',
-      [this.db.settings, this.db.exercises, this.db.templates, this.db.sessions, this.db.logs, this.db.runs],
+      [
+        this.db.settings,
+        this.db.exercises,
+        this.db.templates,
+        this.db.sessions,
+        this.db.logs,
+        this.db.runs,
+        this.db.bodyWeights,
+      ],
       async () => {
         await Promise.all([
           this.db.settings.clear(),
@@ -465,6 +512,7 @@ export class DexieRepository implements WorkoutRepository {
           this.db.sessions.clear(),
           this.db.logs.clear(),
           this.db.runs.clear(),
+          this.db.bodyWeights.clear(),
         ]);
         if (settings?.length) await this.db.settings.bulkPut(settings);
         if (exercises?.length) await this.db.exercises.bulkPut(exercises);
@@ -472,6 +520,7 @@ export class DexieRepository implements WorkoutRepository {
         if (sessions?.length) await this.db.sessions.bulkPut(sessions);
         if (logs?.length) await this.db.logs.bulkPut(logs);
         if (runs?.length) await this.db.runs.bulkPut(runs);
+        if (bodyWeights?.length) await this.db.bodyWeights.bulkPut(bodyWeights);
       },
     );
   }

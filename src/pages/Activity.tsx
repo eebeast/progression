@@ -11,6 +11,7 @@ import { Calendar } from '@/components/Calendar';
 import { RunningSummary } from '@/components/RunningSummary';
 import { RunForm } from '@/components/RunForm';
 import { RunRow } from '@/components/RunRow';
+import { BodyWeightSection } from '@/components/BodyWeightSection';
 import { EmptyState, FEELING_EMOJI } from '@/components/FeelingPicker';
 import {
   computeStreaks,
@@ -20,7 +21,7 @@ import {
   weeklyActiveCount,
 } from '@/utils/activity';
 import { formatDuration, formatLongDate } from '@/utils/format';
-import type { Run, WorkoutSession } from '@/types';
+import type { BodyWeightEntry, Run, WorkoutSession } from '@/types';
 
 export default function Activity() {
   const navigate = useNavigate();
@@ -30,6 +31,8 @@ export default function Activity() {
   const sessions =
     useObservable(() => repo.observeCompletedSessions(), [repo]) ?? ([] as WorkoutSession[]);
   const runs = useObservable(() => repo.observeRuns(), [repo]) ?? ([] as Run[]);
+  const bodyWeights =
+    useObservable(() => repo.observeBodyWeights(), [repo]) ?? ([] as BodyWeightEntry[]);
 
   const [selectedKey, setSelectedKey] = React.useState<string>(() => todayKey());
   const [showForm, setShowForm] = React.useState(false);
@@ -164,6 +167,15 @@ export default function Activity() {
             </div>
           )}
         </div>
+
+        {/* 4) Body-weight log — just the record, no trend or goal */}
+        <BodyWeightSection
+          entries={bodyWeights}
+          unit={settings.unit}
+          onAdd={(input) => repo.addBodyWeight(input)}
+          onUpdate={(id, patch) => repo.updateBodyWeight(id, patch)}
+          onDelete={(id) => repo.deleteBodyWeight(id)}
+        />
       </div>
     </div>
   );
