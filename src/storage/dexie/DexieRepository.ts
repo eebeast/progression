@@ -293,6 +293,13 @@ export class DexieRepository implements WorkoutRepository {
     });
   }
 
+  observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]> {
+    return liveQuery(async () => {
+      const logs = await this.db.logs.where('exerciseId').equals(exerciseId).toArray();
+      return logs.sort((a, b) => a.timestamp - b.timestamp);
+    });
+  }
+
   private async logsForSessionExercise(
     sessionId: string,
     exerciseId: string,

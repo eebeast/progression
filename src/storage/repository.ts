@@ -110,6 +110,8 @@ export interface WorkoutRepository {
 
   // logs (sets)
   observeSessionLogs(sessionId: string): Observable<ExerciseLog[]>;
+  /** Every logged set for an exercise, across all sessions, oldest first. */
+  observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]>;
   getLastPerformedSets(
     exerciseId: string,
     currentSessionId: string,

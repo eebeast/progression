@@ -12,6 +12,8 @@ interface SetRowProps {
   weightIncrement: number;
   /** Working-set number (1-based), ignored for warm-up sets which show a "W". */
   displayNumber: number;
+  /** Show a "New PR" badge — this set beat the prior record when logged. */
+  isPR?: boolean;
   flash?: boolean;
   onSave: (patch: { weight: number; reps: number; isWarmup: boolean }) => void;
   onDelete: () => void;
@@ -23,6 +25,7 @@ export function SetRow({
   unit,
   weightIncrement,
   displayNumber,
+  isPR,
   flash,
   onSave,
   onDelete,
@@ -120,14 +123,21 @@ export function SetRow({
       >
         {log.isWarmup ? 'W' : displayNumber}
       </span>
-      <span
-        className={cn(
-          'text-lg font-semibold tabular-nums',
-          log.isWarmup && 'text-muted-foreground',
+      <span className="flex items-center gap-2">
+        {isPR && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🏆 New PR
+          </span>
         )}
-      >
-        {log.weight}
-        {unit} <span className="text-muted-foreground">×</span> {log.reps}
+        <span
+          className={cn(
+            'text-lg font-semibold tabular-nums',
+            log.isWarmup && 'text-muted-foreground',
+          )}
+        >
+          {log.weight}
+          {unit} <span className="text-muted-foreground">×</span> {log.reps}
+        </span>
       </span>
     </button>
   );

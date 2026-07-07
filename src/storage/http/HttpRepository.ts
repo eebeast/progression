@@ -105,6 +105,9 @@ export class HttpRepository implements WorkoutRepository {
   observeSessionLogs(_sessionId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
+  observeExerciseLogs(_exerciseId: string): Observable<ExerciseLog[]> {
+    return TODO();
+  }
   getLastPerformedSets(_exerciseId: string, _currentSessionId: string): Promise<LastPerformed | null> {
     return TODO();
   }
