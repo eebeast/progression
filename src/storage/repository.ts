@@ -1,4 +1,5 @@
 import type {
+  BodyWeightEntry,
   Exercise,
   ExerciseLog,
   Feeling,
@@ -54,6 +55,11 @@ export interface NewRunInput {
   durationSeconds: number;
   notes?: string;
   feeling?: Feeling | null;
+}
+
+export interface NewBodyWeightInput {
+  date: number;
+  weight: number;
 }
 
 export interface TemplateInput {
@@ -125,6 +131,15 @@ export interface WorkoutRepository {
     patch: Partial<Pick<Run, 'date' | 'distanceKm' | 'durationSeconds' | 'notes' | 'feeling'>>,
   ): Promise<void>;
   deleteRun(id: string): Promise<void>;
+
+  // body weight
+  observeBodyWeights(): Observable<BodyWeightEntry[]>;
+  addBodyWeight(input: NewBodyWeightInput): Promise<void>;
+  updateBodyWeight(
+    id: string,
+    patch: Partial<Pick<BodyWeightEntry, 'date' | 'weight'>>,
+  ): Promise<void>;
+  deleteBodyWeight(id: string): Promise<void>;
 
   // backup
   exportData(): Promise<void>;
