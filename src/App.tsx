@@ -11,6 +11,7 @@ import Summary from '@/pages/Summary';
 import Activity from '@/pages/Activity';
 import HistoryPage from '@/pages/History';
 import HistoryDetail from '@/pages/HistoryDetail';
+import ExerciseHistory from '@/pages/ExerciseHistory';
 import Templates from '@/pages/Templates';
 import TemplateEditor from '@/pages/TemplateEditor';
 import SettingsPage from '@/pages/Settings';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="/activity" element={<Activity />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:sessionId" element={<HistoryDetail />} />
+        <Route path="/exercise/:exerciseId" element={<ExerciseHistory />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/templates/new" element={<TemplateEditor />} />
         <Route path="/templates/:templateId" element={<TemplateEditor />} />
