@@ -7,7 +7,9 @@ import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { FEELING_EMOJI } from '@/components/FeelingPicker';
+import { ShareButton } from '@/components/ShareButton';
 import { formatDuration, formatLongDate } from '@/utils/format';
+import { buildWorkoutRecap } from '@/utils/shareSummary';
 import { cn } from '@/lib/utils';
 import type { ExerciseLog } from '@/types';
 
@@ -48,7 +50,18 @@ export default function HistoryDetail() {
     );
   }
 
-  const duration = formatDuration((session.endTime ?? session.startTime) - session.startTime);
+  const durationMs = (session.endTime ?? session.startTime) - session.startTime;
+  const duration = formatDuration(durationMs);
+
+  const recap = buildWorkoutRecap({
+    templateName: session.templateName,
+    date: session.date,
+    durationMs,
+    logs,
+    unit: settings.unit,
+    feeling: session.feeling,
+    notes: session.notes,
+  });
 
   const remove = async () => {
     await repo.deleteSession(sessionId);
@@ -86,6 +99,8 @@ export default function HistoryDetail() {
             </p>
           )}
         </div>
+
+        <ShareButton text={recap} />
 
         <div className="flex flex-col gap-4">
           {grouped.map((g) => (

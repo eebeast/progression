@@ -2,18 +2,22 @@ import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
+import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { FeelingPicker } from '@/components/FeelingPicker';
+import { ShareButton } from '@/components/ShareButton';
 import { formatDuration } from '@/utils/format';
+import { buildWorkoutRecap } from '@/utils/shareSummary';
 import type { ExerciseLog, Feeling } from '@/types';
 
 export default function Summary() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const repo = useRepo();
+  const { settings } = useSettings();
 
   const session = useObservable(() => repo.observeSession(sessionId), [repo, sessionId]);
   const logs =
@@ -52,9 +56,21 @@ export default function Summary() {
     );
   }
 
-  const duration = formatDuration((session.endTime ?? Date.now()) - session.startTime);
+  const durationMs = (session.endTime ?? Date.now()) - session.startTime;
+  const duration = formatDuration(durationMs);
   const exercisesCompleted = new Set(logs.map((l) => l.exerciseId)).size;
   const totalSets = logs.length;
+
+  // Recap reflects the feeling/notes currently being edited, not the saved ones.
+  const recap = buildWorkoutRecap({
+    templateName: session.templateName,
+    date: session.date,
+    durationMs,
+    logs,
+    unit: settings.unit,
+    feeling,
+    notes,
+  });
 
   const finish = async () => {
     await repo.finishSession(sessionId, { notes, feeling });
@@ -86,6 +102,8 @@ export default function Summary() {
             placeholder="Anything worth remembering…"
           />
         </div>
+
+        <ShareButton text={recap} />
 
         <Button size="lg" onClick={finish}>
           Finish
