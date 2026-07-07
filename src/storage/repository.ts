@@ -46,6 +46,7 @@ export interface NewSetInput {
   exerciseName: string;
   weight: number;
   reps: number;
+  isWarmup?: boolean;
 }
 
 export interface NewRunInput {
@@ -114,7 +115,7 @@ export interface WorkoutRepository {
     currentSessionId: string,
   ): Promise<LastPerformed | null>;
   addSet(input: NewSetInput): Promise<void>;
-  updateSet(id: string, data: Partial<Pick<ExerciseLog, 'weight' | 'reps'>>): Promise<void>;
+  updateSet(id: string, data: Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'isWarmup'>>): Promise<void>;
   deleteSet(id: string): Promise<void>;
 
   // runs

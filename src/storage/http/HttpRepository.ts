@@ -111,7 +111,7 @@ export class HttpRepository implements WorkoutRepository {
   addSet(_input: NewSetInput): Promise<void> {
     return TODO();
   }
-  updateSet(_id: string, _data: Partial<Pick<ExerciseLog, 'weight' | 'reps'>>): Promise<void> {
+  updateSet(_id: string, _data: Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'isWarmup'>>): Promise<void> {
     return TODO();
   }
   deleteSet(_id: string): Promise<void> {

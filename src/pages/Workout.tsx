@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Stepper } from '@/components/Stepper';
 import { SetRow } from '@/components/SetRow';
+import { WarmupToggle } from '@/components/WarmupToggle';
 import { cn } from '@/lib/utils';
 import type { ExerciseLog, TemplateExercise, WorkoutTemplate } from '@/types';
 
@@ -43,6 +44,8 @@ export default function Workout() {
   // Stepper state.
   const [weight, setWeight] = React.useState(0);
   const [reps, setReps] = React.useState(0);
+  // When on, the next saved set is tagged as a warm-up. Sticky until toggled off.
+  const [warmup, setWarmup] = React.useState(false);
 
   // Green flash for the most recently saved set.
   const [flashId, setFlashId] = React.useState<string | null>(null);
@@ -70,7 +73,9 @@ export default function Workout() {
   }, [repo, current?.exerciseId, sessionId]);
 
   const isStarted = current ? started.has(current.exerciseId) || currentLogs.length > 0 : false;
-  const targetMet = current ? currentLogs.length >= current.targetSets : false;
+  // Only working sets count toward the target.
+  const workingSetCount = currentLogs.filter((l) => !l.isWarmup).length;
+  const targetMet = current ? workingSetCount >= current.targetSets : false;
 
   // Pre-fill weight when the exercise changes: last set this session, else last workout.
   React.useEffect(() => {
@@ -103,7 +108,8 @@ export default function Workout() {
     () => exercises.reduce((sum, e) => sum + e.targetSets, 0),
     [exercises],
   );
-  const completedSets = allLogs.length;
+  // Warm-up sets don't count toward the workout-level progress bar.
+  const completedSets = allLogs.filter((l) => !l.isWarmup).length;
   const progressPct = totalTarget > 0 ? (completedSets / totalTarget) * 100 : 0;
 
   if (session === undefined || template === undefined) {
@@ -134,6 +140,7 @@ export default function Workout() {
       exerciseName: current.name,
       weight,
       reps,
+      isWarmup: warmup,
     });
     // Keep weight pre-filled, clear reps, stay ready for the next set.
     setReps(0);
@@ -244,32 +251,44 @@ export default function Workout() {
           {/* Logged sets */}
           {currentLogs.length > 0 && (
             <div className="flex flex-col gap-2">
-              {currentLogs.map((log) => (
-                <SetRow
-                  key={log.id}
-                  log={log}
-                  unit={settings.unit}
-                  weightIncrement={settings.weightIncrement}
-                  flash={flashId === log.id}
-                  onSave={(patch) => repo.updateSet(log.id, patch)}
-                  onDelete={() => repo.deleteSet(log.id)}
-                />
-              ))}
+              {(() => {
+                let working = 0;
+                return currentLogs.map((log) => {
+                  if (!log.isWarmup) working += 1;
+                  return (
+                    <SetRow
+                      key={log.id}
+                      log={log}
+                      unit={settings.unit}
+                      weightIncrement={settings.weightIncrement}
+                      displayNumber={working}
+                      flash={flashId === log.id}
+                      onSave={(patch) => repo.updateSet(log.id, patch)}
+                      onDelete={() => repo.deleteSet(log.id)}
+                    />
+                  );
+                });
+              })()}
             </div>
           )}
 
           {/* Set entry — only once started */}
           {isStarted && (
-            <div className="grid grid-cols-2 gap-3">
-              <Stepper
-                label="Weight"
-                value={weight}
-                onChange={setWeight}
-                step={settings.weightIncrement}
-                unit={settings.unit}
-                decimal
-              />
-              <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-center">
+                <WarmupToggle value={warmup} onChange={setWarmup} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Stepper
+                  label="Weight"
+                  value={weight}
+                  onChange={setWeight}
+                  step={settings.weightIncrement}
+                  unit={settings.unit}
+                  decimal
+                />
+                <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+              </div>
             </div>
           )}
 

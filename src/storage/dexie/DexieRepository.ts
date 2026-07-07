@@ -344,12 +344,16 @@ export class DexieRepository implements WorkoutRepository {
       setNumber: existing.length + 1,
       weight: input.weight,
       reps: input.reps,
+      isWarmup: input.isWarmup ?? false,
       timestamp: Date.now(),
     };
     await this.db.logs.put(log);
   }
 
-  async updateSet(id: string, data: Partial<Pick<ExerciseLog, 'weight' | 'reps'>>): Promise<void> {
+  async updateSet(
+    id: string,
+    data: Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'isWarmup'>>,
+  ): Promise<void> {
     await this.db.logs.update(id, data);
   }
 
