@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Stepper } from '@/components/Stepper';
 import { SetRow } from '@/components/SetRow';
+import { getRecord, getRecordSetIds } from '@/utils/personalRecords';
 import { cn } from '@/lib/utils';
 import type { ExerciseLog, TemplateExercise, WorkoutTemplate } from '@/types';
 
@@ -51,6 +52,16 @@ export default function Workout() {
     () => (current ? allLogs.filter((l) => l.exerciseId === current.exerciseId) : []),
     [allLogs, current],
   );
+
+  // All sets for this exercise across every session — drives the record and the
+  // per-set "New PR" badges. Derived live so edits/deletes stay consistent.
+  const exerciseLogs =
+    useObservable(
+      () => (current ? repo.observeExerciseLogs(current.exerciseId) : of<ExerciseLog[]>([])),
+      [repo, current?.exerciseId],
+    ) ?? ([] as ExerciseLog[]);
+  const record = React.useMemo(() => getRecord(exerciseLogs), [exerciseLogs]);
+  const prIds = React.useMemo(() => getRecordSetIds(exerciseLogs), [exerciseLogs]);
 
   // Last workout is a one-shot read; refetch when the exercise changes.
   const [lastWorkout, setLastWorkout] = React.useState<LastPerformed | null>(null);
@@ -239,6 +250,17 @@ export default function Workout() {
             ) : (
               <p className="text-sm text-muted-foreground">First time</p>
             )}
+            {record && (
+              <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Best
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  🏆 {record.weight}
+                  {settings.unit} × {record.reps}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Logged sets */}
@@ -250,6 +272,7 @@ export default function Workout() {
                   log={log}
                   unit={settings.unit}
                   weightIncrement={settings.weightIncrement}
+                  isPR={prIds.has(log.id)}
                   flash={flashId === log.id}
                   onSave={(patch) => repo.updateSet(log.id, patch)}
                   onDelete={() => repo.deleteSet(log.id)}

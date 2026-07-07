@@ -58,6 +58,7 @@ export interface ExerciseLog {
   setNumber: number;
   weight: number;
   reps: number;
+  isWarmup?: boolean; // warm-up set; excluded from targets, progress, and PRs
   timestamp: number;
 }
 

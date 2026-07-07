@@ -9,13 +9,15 @@ interface SetRowProps {
   log: ExerciseLog;
   unit: Unit;
   weightIncrement: number;
+  /** Show a "New PR" badge — this set beat the prior record when logged. */
+  isPR?: boolean;
   flash?: boolean;
   onSave: (patch: { weight: number; reps: number }) => void;
   onDelete: () => void;
 }
 
 /** A logged set. Tap to edit weight/reps inline or delete. */
-export function SetRow({ log, unit, weightIncrement, flash, onSave, onDelete }: SetRowProps) {
+export function SetRow({ log, unit, weightIncrement, isPR, flash, onSave, onDelete }: SetRowProps) {
   const [editing, setEditing] = React.useState(false);
   const [weight, setWeight] = React.useState(log.weight);
   const [reps, setReps] = React.useState(log.reps);
@@ -93,9 +95,16 @@ export function SetRow({ log, unit, weightIncrement, flash, onSave, onDelete }: 
       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-sm font-semibold tabular-nums text-muted-foreground">
         {log.setNumber}
       </span>
-      <span className="text-lg font-semibold tabular-nums">
-        {log.weight}
-        {unit} <span className="text-muted-foreground">×</span> {log.reps}
+      <span className="flex items-center gap-2">
+        {isPR && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            🏆 New PR
+          </span>
+        )}
+        <span className="text-lg font-semibold tabular-nums">
+          {log.weight}
+          {unit} <span className="text-muted-foreground">×</span> {log.reps}
+        </span>
       </span>
     </button>
   );
