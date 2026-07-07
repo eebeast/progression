@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { FEELING_EMOJI } from '@/components/FeelingPicker';
 import { formatDuration, formatLongDate } from '@/utils/format';
+import { cn } from '@/lib/utils';
 import type { ExerciseLog } from '@/types';
 
 export default function HistoryDetail() {
@@ -89,18 +90,31 @@ export default function HistoryDetail() {
             <div key={g.name}>
               <h3 className="mb-1.5 font-semibold">{g.name}</h3>
               <div className="flex flex-col gap-1">
-                {g.sets.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm tabular-nums"
-                  >
-                    <span className="text-muted-foreground">Set {s.setNumber}</span>
-                    <span className="font-medium">
-                      {s.weight}
-                      {settings.unit} × {s.reps}
-                    </span>
-                  </div>
-                ))}
+                {(() => {
+                  let working = 0;
+                  return g.sets.map((s) => {
+                    if (!s.isWarmup) working += 1;
+                    return (
+                      <div
+                        key={s.id}
+                        className={cn(
+                          'flex items-center justify-between rounded-lg px-3 py-2 text-sm tabular-nums',
+                          s.isWarmup ? 'bg-muted/20' : 'bg-muted/40',
+                        )}
+                      >
+                        <span className="text-muted-foreground">
+                          {s.isWarmup ? 'Warm-up' : `Set ${working}`}
+                        </span>
+                        <span
+                          className={cn('font-medium', s.isWarmup && 'text-muted-foreground')}
+                        >
+                          {s.weight}
+                          {settings.unit} × {s.reps}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           ))}
