@@ -198,7 +198,14 @@ export default function Workout() {
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="flex-1 text-center">
-              <h2 className="text-xl font-bold leading-tight">{current.name}</h2>
+              <button
+                type="button"
+                onClick={() => navigate(`/exercise/${current.exerciseId}`)}
+                className="mx-auto inline-flex items-center gap-1 text-xl font-bold leading-tight hover:text-primary"
+              >
+                {current.name}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
               <div className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <span>
                   {current.targetSets} sets · {current.targetRepRange} reps

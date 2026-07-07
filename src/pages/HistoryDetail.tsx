@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
@@ -23,9 +23,11 @@ export default function HistoryDetail() {
   const [confirm, setConfirm] = React.useState(false);
 
   const grouped = React.useMemo(() => {
-    const map = new Map<string, { name: string; sets: ExerciseLog[] }>();
+    const map = new Map<string, { exerciseId: string; name: string; sets: ExerciseLog[] }>();
     for (const log of logs) {
-      const g = map.get(log.exerciseId) ?? { name: log.exerciseName, sets: [] };
+      const g =
+        map.get(log.exerciseId) ??
+        { exerciseId: log.exerciseId, name: log.exerciseName, sets: [] };
       g.sets.push(log);
       map.set(log.exerciseId, g);
     }
@@ -86,8 +88,15 @@ export default function HistoryDetail() {
 
         <div className="flex flex-col gap-4">
           {grouped.map((g) => (
-            <div key={g.name}>
-              <h3 className="mb-1.5 font-semibold">{g.name}</h3>
+            <div key={g.exerciseId}>
+              <button
+                type="button"
+                onClick={() => navigate(`/exercise/${g.exerciseId}`)}
+                className="mb-1.5 inline-flex items-center gap-1 font-semibold hover:text-primary"
+              >
+                {g.name}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
               <div className="flex flex-col gap-1">
                 {g.sets.map((s) => (
                   <div
