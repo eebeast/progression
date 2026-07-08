@@ -14,12 +14,12 @@ All data lives on your device in IndexedDB. Nothing is sent anywhere; there is n
 - **Workout logging** — big, thumb-friendly weight/rep steppers, last-performed hints per exercise, and a green flash when a set saves. Sets are **drag-to-reorder**, and per-exercise **time-based** logging (seconds) is supported alongside reps.
 - **Warm-up sets** — tag a set as a warm-up with the toggle chip; it renders muted with a "W" badge and is excluded from targets, the progress bar, and personal records, but still recorded.
 - **Personal records** — the best lift on file per exercise (heaviest weight ever, and most reps at that weight), shown as `Best: …` on the Workout screen and the exercise page, with a `🏆 New PR` badge when a set beats the prior record. Derived live, never stored.
-- **Exercise history** — tap any exercise name to drill into `/exercise/:id`: its current record on top, then every session that logged it, most recent first.
+- **Exercise top sets** — tap any exercise name to drill into `/exercise/:id`: its personal record plus the **top 4 sets ever** with the date each was performed. An optional **Exercises tab** (toggle in Settings) lists every exercise to browse these directly.
 - **Share** — a Share button on the Summary and History-detail pages builds a plain-text recap (native share sheet on mobile, clipboard elsewhere).
 - **Activity** — a month calendar with current/best streaks, manual run logging (distance + time) with derived pace/speed, and a **body-weight log** (date + weight, editable list). Completed lifts and runs count as active days toward a weekly goal.
 - **History** — every finished workout and logged run, interleaved most-recent-first; workouts are tappable for the full set-by-set detail, runs are editable inline.
 - **Plans** — edit the built-in templates or build your own.
-- **Settings** — name, light/dark/system theme, accent presets (blue / purple / orange / green), weight increment, weekly goal, and full JSON export/import backup.
+- **Settings** — name, light/dark/system theme, accent presets (blue / purple / orange / green), weight increment, weekly goal, an optional Exercises tab, and full JSON export/import backup.
 - **PWA** — installable and works offline.
 
 ## Tech stack

@@ -62,8 +62,11 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 - **Personal records** — `utils/personalRecords.ts` (`getRecord`, `getRecordSetIds`,
   warm-ups excluded, derived live — never persisted). Surfaced in `Workout` ("Best" +
   `🏆 New PR` badge) and `ExerciseHistory`. Backed by `observeExerciseLogs(exerciseId)`.
-- **Exercise history** — route `/exercise/:exerciseId` → `pages/ExerciseHistory.tsx`.
-  Entry points: exercise title in `Workout`, group headings in `HistoryDetail`.
+- **Exercise top sets** — route `/exercise/:exerciseId` → `pages/ExerciseHistory.tsx`: the
+  PR (`getRecord`) plus the best 4 dated sets (`getTopSets` in `utils/personalRecords.ts`,
+  dedup by weight×reps keeping the most recent date). Entry points: exercise title in
+  `Workout`, group headings in `HistoryDetail`, and — when `settings.showExerciseLibrary`
+  is on — an "Exercises" nav tab (`AppShell`) → `/exercises` (`pages/Exercises.tsx`).
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
   `components/ShareButton.tsx` (`navigator.share`, else clipboard). Used in `Summary`
   and `HistoryDetail`.

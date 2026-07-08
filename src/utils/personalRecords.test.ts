@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRecord, getRecordSetIds } from '@/utils/personalRecords';
+import { getRecord, getRecordSetIds, getTopSets, type DatedSet } from '@/utils/personalRecords';
 import type { ExerciseLog } from '@/types';
 
 let seq = 0;
@@ -69,5 +69,37 @@ describe('getRecordSetIds', () => {
     ];
     // Timeline (working only): a(100x5) baseline, b(105x3) beats weight, c(105x6) beats reps.
     expect(getRecordSetIds(logs)).toEqual(new Set(['b', 'c']));
+  });
+});
+
+describe('getTopSets', () => {
+  const s = (weight: number, reps: number, date: number, warmup = false): DatedSet => ({
+    weight,
+    reps,
+    date,
+    isWarmup: warmup,
+  });
+
+  it('returns the heaviest sets first, then most reps', () => {
+    expect(getTopSets([s(100, 5, 1), s(105, 3, 2), s(100, 8, 3)])).toEqual([
+      { weight: 105, reps: 3, date: 2 },
+      { weight: 100, reps: 8, date: 3 },
+      { weight: 100, reps: 5, date: 1 },
+    ]);
+  });
+
+  it('dedups identical weight×reps, keeping the most recent date', () => {
+    expect(getTopSets([s(20, 12, 1), s(20, 12, 5)])).toEqual([{ weight: 20, reps: 12, date: 5 }]);
+  });
+
+  it('excludes warm-ups', () => {
+    expect(getTopSets([s(200, 1, 1, true), s(100, 5, 2)])).toEqual([{ weight: 100, reps: 5, date: 2 }]);
+  });
+
+  it('limits to the requested count', () => {
+    const many = [s(50, 5, 1), s(40, 5, 2), s(30, 5, 3), s(20, 5, 4), s(10, 5, 5)];
+    const top = getTopSets(many, 4);
+    expect(top).toHaveLength(4);
+    expect(top[0]).toEqual({ weight: 50, reps: 5, date: 1 });
   });
 });

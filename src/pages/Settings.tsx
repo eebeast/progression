@@ -157,6 +157,28 @@ export default function SettingsPage() {
           </div>
         </Row>
 
+        <Row label="Exercises tab">
+          <div className="flex gap-2">
+            <SegButton
+              value="off"
+              current={settings.showExerciseLibrary ? 'on' : 'off'}
+              onClick={() => repo.updateSettings({ showExerciseLibrary: false })}
+            >
+              Off
+            </SegButton>
+            <SegButton
+              value="on"
+              current={settings.showExerciseLibrary ? 'on' : 'off'}
+              onClick={() => repo.updateSettings({ showExerciseLibrary: true })}
+            >
+              On
+            </SegButton>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Adds a tab to browse each exercise and its top sets.
+          </p>
+        </Row>
+
         <div className="flex flex-col gap-3 border-t border-border pt-6">
           <Label>Backup</Label>
           <Button variant="outline" onClick={() => repo.exportData()}>

@@ -1,21 +1,26 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { CalendarDays, Dumbbell, History, LayoutGrid, Settings } from 'lucide-react';
+import { CalendarDays, Dumbbell, History, LayoutGrid, ListChecks, Settings } from 'lucide-react';
+import { useSettings } from '@/hooks/useSettings';
 import { cn } from '@/lib/utils';
-
-const tabs = [
-  { to: '/', label: 'Today', icon: Dumbbell, end: true },
-  { to: '/activity', label: 'Activity', icon: CalendarDays, end: false },
-  { to: '/history', label: 'History', icon: History, end: false },
-  { to: '/templates', label: 'Plans', icon: LayoutGrid, end: false },
-  { to: '/settings', label: 'Settings', icon: Settings, end: false },
-];
 
 /** Hide all chrome during the focused logging flow. */
 const HIDE_NAV_PREFIXES = ['/workout', '/summary', '/onboarding'];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const { settings } = useSettings();
   const hideNav = HIDE_NAV_PREFIXES.some((p) => pathname.startsWith(p));
+
+  const tabs = [
+    { to: '/', label: 'Today', icon: Dumbbell, end: true },
+    { to: '/activity', label: 'Activity', icon: CalendarDays, end: false },
+    { to: '/history', label: 'History', icon: History, end: false },
+    ...(settings.showExerciseLibrary
+      ? [{ to: '/exercises', label: 'Exercises', icon: ListChecks, end: false }]
+      : []),
+    { to: '/templates', label: 'Plans', icon: LayoutGrid, end: false },
+    { to: '/settings', label: 'Settings', icon: Settings, end: false },
+  ];
 
   return (
     <div
