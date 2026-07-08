@@ -70,6 +70,9 @@ export class HttpRepository implements WorkoutRepository {
   deleteTemplate(_id: string): Promise<void> {
     return TODO();
   }
+  reorderTemplates(_orderedIds: string[]): Promise<void> {
+    return TODO();
+  }
 
   // sessions
   observeActiveSession(): Observable<WorkoutSession | null> {

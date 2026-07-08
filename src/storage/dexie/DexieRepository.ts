@@ -209,6 +209,12 @@ export class DexieRepository implements WorkoutRepository {
     await this.db.templates.delete(id);
   }
 
+  async reorderTemplates(orderedIds: string[]): Promise<void> {
+    await this.db.transaction('rw', this.db.templates, async () => {
+      await Promise.all(orderedIds.map((id, i) => this.db.templates.update(id, { order: i })));
+    });
+  }
+
   /* ----------------------------- sessions ----------------------------- */
 
   private async activeSession(): Promise<WorkoutSession | null> {

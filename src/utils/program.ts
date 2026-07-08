@@ -19,6 +19,31 @@ export function deriveTodayTemplate(
   return templates[(idx + 1) % templates.length];
 }
 
+/**
+ * The reorderable rotation: templates in program order starting at `current`,
+ * excluding the `anchorId` template (the last-completed one, which loops back
+ * and is not a future day). Row 0 is today, then tomorrow, then next, …
+ *
+ * Persisting a reordered rotation as `[anchorId, ...rotation]` keeps
+ * `deriveTodayTemplate` reproducing exactly this sequence.
+ */
+export function getRotation(
+  templates: WorkoutTemplate[],
+  current: WorkoutTemplate | null,
+  anchorId: string | null,
+): WorkoutTemplate[] {
+  if (!current || templates.length === 0) return [];
+  const startIdx = templates.findIndex((t) => t.id === current.id);
+  if (startIdx < 0) return [];
+  const seq: WorkoutTemplate[] = [];
+  for (let i = 0; i < templates.length; i++) {
+    const t = templates[(startIdx + i) % templates.length];
+    if (anchorId && t.id === anchorId) continue;
+    seq.push(t);
+  }
+  return seq;
+}
+
 /** The N templates that follow `current` in program order (wrapping). */
 export function getUpcoming(
   templates: WorkoutTemplate[],
