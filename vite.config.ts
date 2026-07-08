@@ -11,9 +11,21 @@ export default defineConfig({
     },
   },
   test: {
-    // Pure-logic unit tests run in Node; add jsdom later if we test components.
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // jsdom for component/hook tests; pure-logic tests run fine here too.
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'text', 'html', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/main.tsx',
+        'src/**/*.d.ts',
+      ],
+    },
   },
   plugins: [
     react(),

@@ -112,13 +112,24 @@ npm run build      # tsc -b + vite build
 **Typecheck gotcha:** the root `tsconfig` uses project references, so `tsc --noEmit` is a
 **no-op**. Use `npm run typecheck` (`tsc -b`) or `npm run build`.
 
-**Tests:** pure-logic helpers are unit-tested with **Vitest**, colocated as
-`src/utils/*.test.ts` (Node environment, no DOM). When you touch a pure util
-(`personalRecords`, `program`, `shareSummary`, `format`, `activity`, `runMetrics`), add or
-update its test. Component/DOM tests aren't set up yet — add `jsdom` + RTL if needed.
+**Tests:** **Vitest** with **jsdom** + **React Testing Library** (`@testing-library/react`,
+`user-event`, `jest-dom`), colocated as `*.test.ts`/`*.test.tsx`. `src/test/setup.ts`
+registers jest-dom matchers and RTL cleanup. Two layers:
+- **Pure utils** (`personalRecords`, `program`, `shareSummary`, `format`, `activity`,
+  `runMetrics`) — input/output + edge cases. When you touch one, add/update its test.
+- **Leaf components/hooks** — behavior via accessible queries + `user-event` (`Stepper`,
+  `SetRow`, `WarmupToggle`, `FeelingPicker`, `ShareButton`, `useObservable`). Test what the
+  user sees/does, not internals; use real components (stub only browser boundaries like
+  `navigator.share`/`clipboard`). Container pages (`Dashboard`, `Workout`, `Activity`, …)
+  are not yet covered — add integration tests with a fake `WorkoutRepository` via
+  `RepositoryProvider` when you touch them.
 
-**CI:** `.github/workflows/ci.yml` runs lint → typecheck → test → build on every push/PR to
-`main`. Keep all four green.
+**Coverage:** `npm run test:coverage` (v8). CI runs it and uploads the `coverage/` report
+as an artifact; there is no hard threshold yet (utils are well covered; pages/storage are
+not).
+
+**CI:** `.github/workflows/ci.yml` runs lint → typecheck → test (coverage) → build on every
+push/PR to `main`. Keep all green.
 
 **Known follow-up:** `buildWorkoutRecap` (`shareSummary.ts`) still renders `weight×reps`
 raw — it doesn't use `formatSetValue`, so `time`-metric and zero-weight sets read oddly in
