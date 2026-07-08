@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -8,6 +9,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    // Pure-logic unit tests run in Node; add jsdom later if we test components.
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
   plugins: [
     react(),

@@ -82,14 +82,27 @@ Then open the printed local URL. On first launch a one-screen onboarding asks fo
 
 ## Scripts
 
-| Command           | What it does                                        |
-| ----------------- | --------------------------------------------------- |
-| `npm run dev`     | Start the Vite dev server                           |
-| `npm run build`   | `tsc -b` (authoritative typecheck) + `vite build`   |
-| `npm run preview` | Preview the production build locally                |
+| Command              | What it does                                        |
+| -------------------- | --------------------------------------------------- |
+| `npm run dev`        | Start the Vite dev server                           |
+| `npm run build`      | `tsc -b` (authoritative typecheck) + `vite build`   |
+| `npm run typecheck`  | `tsc -b` — real typecheck without bundling          |
+| `npm run lint`       | ESLint over the project                             |
+| `npm test`           | Run the Vitest unit suite once                      |
+| `npm run test:watch` | Vitest in watch mode                                |
+| `npm run preview`    | Preview the production build locally                |
 
 > The root `tsconfig` uses project references, so `tsc --noEmit` is a no-op — use
-> `npm run build` for a real typecheck.
+> `npm run typecheck` (`tsc -b`) or `npm run build` for a real typecheck.
+
+## Testing & CI
+
+Pure-logic helpers are unit-tested with **Vitest** (`src/utils/*.test.ts`) — personal
+records, program/rotation derivation, the share recap, formatting, and streaks. Run
+`npm test`.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint → typecheck → test → build on every
+push and pull request to `main`.
 
 ## Data & privacy
 
