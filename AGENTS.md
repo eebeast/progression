@@ -102,14 +102,27 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 
 ```bash
 npm install
-npm run dev       # Vite dev server
-npm run build     # tsc -b (authoritative typecheck) + vite build
-npm run preview   # preview the production build
+npm run dev        # Vite dev server
+npm run lint       # ESLint (flat config, eslint.config.js)
+npm run typecheck  # tsc -b (real typecheck)
+npm test           # Vitest unit suite (src/**/*.test.ts)
+npm run build      # tsc -b + vite build
 ```
 
 **Typecheck gotcha:** the root `tsconfig` uses project references, so `tsc --noEmit` is a
-**no-op**. Use `npx tsc -b` or `npm run build` for a real typecheck. There is no unit-test
-suite; verify by building and, for behavior, running the app.
+**no-op**. Use `npm run typecheck` (`tsc -b`) or `npm run build`.
+
+**Tests:** pure-logic helpers are unit-tested with **Vitest**, colocated as
+`src/utils/*.test.ts` (Node environment, no DOM). When you touch a pure util
+(`personalRecords`, `program`, `shareSummary`, `format`, `activity`, `runMetrics`), add or
+update its test. Component/DOM tests aren't set up yet — add `jsdom` + RTL if needed.
+
+**CI:** `.github/workflows/ci.yml` runs lint → typecheck → test → build on every push/PR to
+`main`. Keep all four green.
+
+**Known follow-up:** `buildWorkoutRecap` (`shareSummary.ts`) still renders `weight×reps`
+raw — it doesn't use `formatSetValue`, so `time`-metric and zero-weight sets read oddly in
+the shared recap. Align it with `SetRow`/`HistoryDetail` when convenient.
 
 ## Gotchas learned the hard way
 
