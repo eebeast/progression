@@ -17,7 +17,7 @@ All data lives on your device in IndexedDB. Nothing is sent anywhere; there is n
 - **Exercise history** — tap any exercise name to drill into `/exercise/:id`: its current record on top, then every session that logged it, most recent first.
 - **Share** — a Share button on the Summary and History-detail pages builds a plain-text recap (native share sheet on mobile, clipboard elsewhere).
 - **Activity** — a month calendar with current/best streaks, manual run logging (distance + time) with derived pace/speed, and a **body-weight log** (date + weight, editable list). Completed lifts and runs count as active days toward a weekly goal.
-- **History** — every finished session, tappable for the full set-by-set detail.
+- **History** — every finished workout and logged run, interleaved most-recent-first; workouts are tappable for the full set-by-set detail, runs are editable inline.
 - **Plans** — edit the built-in templates or build your own.
 - **Settings** — name, light/dark/system theme, accent presets (blue / purple / orange / green), weight increment, weekly goal, and full JSON export/import backup.
 - **PWA** — installable and works offline.
