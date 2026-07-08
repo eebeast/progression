@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accent: 'blue',
   weightIncrement: 2.5,
   weeklyGoal: 4,
+  showExerciseLibrary: false,
 };
 
 export interface SeedExercise {

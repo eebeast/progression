@@ -27,6 +27,39 @@ export function getRecord(logs: ExerciseLog[]): Record | null {
   return best;
 }
 
+export interface DatedSet {
+  weight: number;
+  reps: number;
+  date: number;
+  isWarmup?: boolean;
+}
+
+export interface TopSet {
+  weight: number;
+  reps: number;
+  date: number;
+}
+
+/**
+ * The best `limit` working sets ever for an exercise: distinct weight×reps
+ * combos (keeping the most recent date each was performed), sorted heaviest
+ * first, then most reps. Warm-ups excluded. Facts only — no estimates.
+ */
+export function getTopSets(sets: DatedSet[], limit = 4): TopSet[] {
+  const byCombo = new Map<string, TopSet>();
+  for (const s of sets) {
+    if (s.isWarmup) continue;
+    const key = `${s.weight}x${s.reps}`;
+    const existing = byCombo.get(key);
+    if (!existing || s.date > existing.date) {
+      byCombo.set(key, { weight: s.weight, reps: s.reps, date: s.date });
+    }
+  }
+  return [...byCombo.values()]
+    .sort((a, b) => b.weight - a.weight || b.reps - a.reps)
+    .slice(0, limit);
+}
+
 /**
  * The ids of every working set that set a NEW record at the moment it was
  * logged — i.e. it beat the best of all strictly-earlier working sets (by

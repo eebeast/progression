@@ -1,18 +1,16 @@
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/FeelingPicker';
-import { getRecord } from '@/utils/personalRecords';
+import { getRecord, getTopSets, type DatedSet } from '@/utils/personalRecords';
 import { formatDate } from '@/utils/format';
-import { cn } from '@/lib/utils';
 import type { ExerciseLog, WorkoutSession } from '@/types';
 
-/** A reverse-chronological drill-down of every session that logged an exercise. */
+/** An exercise's personal record and its best sets, most impressive first. */
 export default function ExerciseHistory() {
   const { exerciseId = '' } = useParams();
   const navigate = useNavigate();
@@ -28,22 +26,16 @@ export default function ExerciseHistory() {
   const exerciseName = logs[0]?.exerciseName ?? 'Exercise';
   const record = React.useMemo(() => getRecord(logs), [logs]);
 
-  // One card per completed session that logged this exercise, most recent first.
-  const entries = React.useMemo(() => {
-    const sessionById = new Map(sessions.map((s) => [s.id, s]));
-    const bySession = new Map<string, ExerciseLog[]>();
+  // The best sets ever, each dated by the completed session that logged it.
+  const topSets = React.useMemo(() => {
+    const dateBySession = new Map(sessions.map((s) => [s.id, s.date]));
+    const dated: DatedSet[] = [];
     for (const log of logs) {
-      if (!sessionById.has(log.sessionId)) continue; // skip active/unknown sessions
-      const arr = bySession.get(log.sessionId) ?? [];
-      arr.push(log);
-      bySession.set(log.sessionId, arr);
+      const date = dateBySession.get(log.sessionId);
+      if (date === undefined) continue; // needs a completed-session date
+      dated.push({ weight: log.weight, reps: log.reps, date, isWarmup: log.isWarmup });
     }
-    return [...bySession.entries()]
-      .map(([sessionId, sets]) => ({
-        session: sessionById.get(sessionId)!,
-        sets: [...sets].sort((a, b) => a.setNumber - b.setNumber),
-      }))
-      .sort((a, b) => b.session.date - a.session.date);
+    return getTopSets(dated, 4);
   }, [logs, sessions]);
 
   return (
@@ -63,7 +55,7 @@ export default function ExerciseHistory() {
       />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-5 px-5 py-5">
-        {/* Current record — facts only */}
+        {/* Personal record — facts only */}
         <div className="rounded-xl border border-border bg-muted/40 p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Personal record
@@ -78,47 +70,30 @@ export default function ExerciseHistory() {
           )}
         </div>
 
-        {entries.length === 0 ? (
-          <EmptyState title="No sessions yet" description="This exercise hasn't been logged." />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {entries.map(({ session, sets }) => (
-              <button
-                key={session.id}
-                type="button"
-                onClick={() => navigate(`/history/${session.id}`)}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">{session.templateName}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(session.date)}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        {/* Top sets — the best efforts, with the date each was performed */}
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Top sets
+          </p>
+          {topSets.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {topSets.map((s) => (
+                <div
+                  key={`${s.weight}x${s.reps}`}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
+                >
+                  <span className="text-lg font-semibold tabular-nums">
+                    {s.weight}
+                    {settings.unit} × {s.reps}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{formatDate(s.date)}</span>
                 </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums">
-                  {(() => {
-                    let working = 0;
-                    return sets.map((s) => {
-                      if (!s.isWarmup) working += 1;
-                      return (
-                        <span
-                          key={s.id}
-                          className={cn(s.isWarmup && 'text-muted-foreground')}
-                          title={s.isWarmup ? 'Warm-up' : `Set ${working}`}
-                        >
-                          {s.isWarmup && <span className="mr-0.5 text-xs">W</span>}
-                          {s.weight}
-                          {settings.unit} × {s.reps}
-                        </span>
-                      );
-                    });
-                  })()}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No completed sets yet.</p>
+          )}
+        </div>
 
         <Button variant="ghost" onClick={() => navigate(-1)}>
           Back

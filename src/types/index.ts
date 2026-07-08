@@ -14,6 +14,7 @@ export interface Settings {
   accent: Accent;
   weightIncrement: number;
   weeklyGoal: number; // target active days per week
+  showExerciseLibrary?: boolean; // show the Exercises browse tab
 }
 
 export interface Exercise {
