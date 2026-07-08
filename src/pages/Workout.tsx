@@ -9,11 +9,11 @@ import { PageHeader } from '@/components/PageHeader';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Stepper } from '@/components/Stepper';
-import { SetRow } from '@/components/SetRow';
+import { SetList } from '@/components/SetList';
 import { WarmupToggle } from '@/components/WarmupToggle';
 import { getRecord, getRecordSetIds } from '@/utils/personalRecords';
-import { cn } from '@/lib/utils';
-import type { ExerciseLog, TemplateExercise, WorkoutTemplate } from '@/types';
+import { formatSetValue } from '@/utils/format';
+import type { ExerciseLog, Metric, TemplateExercise, WorkoutTemplate } from '@/types';
 
 export default function Workout() {
   const { sessionId = '' } = useParams();
@@ -52,7 +52,12 @@ export default function Workout() {
   const [flashId, setFlashId] = React.useState<string | null>(null);
 
   const currentLogs = React.useMemo(
-    () => (current ? allLogs.filter((l) => l.exerciseId === current.exerciseId) : []),
+    () =>
+      current
+        ? allLogs
+            .filter((l) => l.exerciseId === current.exerciseId)
+            .sort((a, b) => a.setNumber - b.setNumber)
+        : [],
     [allLogs, current],
   );
 
@@ -87,18 +92,23 @@ export default function Workout() {
   // Only working sets count toward the target.
   const workingSetCount = currentLogs.filter((l) => !l.isWarmup).length;
   const targetMet = current ? workingSetCount >= current.targetSets : false;
+  const metric: Metric = current?.metric ?? 'reps';
 
-  // Pre-fill weight when the exercise changes: last set this session, else last workout.
+  // Pre-fill weight and reps when the exercise changes: last set this session,
+  // else the matching set from the last workout.
   React.useEffect(() => {
     if (!current) return;
     if (currentLogs.length > 0) {
-      setWeight(currentLogs[currentLogs.length - 1].weight);
+      const last = currentLogs[currentLogs.length - 1];
+      setWeight(last.weight);
+      setReps(last.reps);
     } else if (lastWorkout && lastWorkout.sets.length > 0) {
       setWeight(lastWorkout.sets[0].weight);
+      setReps(lastWorkout.sets[0].reps);
     } else {
       setWeight(0);
+      setReps(0);
     }
-    setReps(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.exerciseId, lastWorkout?.session.id]);
 
@@ -151,10 +161,10 @@ export default function Workout() {
       exerciseName: current.name,
       weight,
       reps,
+      metric,
       isWarmup: warmup,
     });
-    // Keep weight pre-filled, clear reps, stay ready for the next set.
-    setReps(0);
+    // Keep both weight and reps pre-filled, ready to repeat the same set.
   };
 
   const goTo = (i: number) => {
@@ -226,7 +236,7 @@ export default function Workout() {
               </button>
               <div className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  {current.targetSets} sets · {current.targetRepRange} reps
+                  {current.targetSets} sets · {current.targetRepRange} {metric === 'time' ? 'sec' : 'reps'}
                 </span>
                 {targetMet && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
@@ -256,8 +266,8 @@ export default function Workout() {
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
                 {lastWorkout.sets.map((s) => (
                   <span key={s.id}>
-                    {s.weight}
-                    {settings.unit} × {s.reps}
+                    {s.weight > 0 && `${s.weight}${settings.unit} × `}
+                    {formatSetValue(s.reps, s.metric)}
                   </span>
                 ))}
               </div>
@@ -270,8 +280,8 @@ export default function Workout() {
                   Best
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
-                  🏆 {record.weight}
-                  {settings.unit} × {record.reps}
+                  🏆 {record.weight > 0 && `${record.weight}${settings.unit} × `}
+                  {formatSetValue(record.reps, metric)}
                 </span>
               </div>
             )}
@@ -279,27 +289,16 @@ export default function Workout() {
 
           {/* Logged sets */}
           {currentLogs.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {(() => {
-                let working = 0;
-                return currentLogs.map((log) => {
-                  if (!log.isWarmup) working += 1;
-                  return (
-                    <SetRow
-                      key={log.id}
-                      log={log}
-                      unit={settings.unit}
-                      weightIncrement={settings.weightIncrement}
-                      displayNumber={working}
-                      isPR={prIds.has(log.id)}
-                      flash={flashId === log.id}
-                      onSave={(patch) => repo.updateSet(log.id, patch)}
-                      onDelete={() => repo.deleteSet(log.id)}
-                    />
-                  );
-                });
-              })()}
-            </div>
+            <SetList
+              logs={currentLogs}
+              unit={settings.unit}
+              weightIncrement={settings.weightIncrement}
+              flashId={flashId}
+              prIds={prIds}
+              onSave={(id, patch) => repo.updateSet(id, patch)}
+              onDelete={(id) => repo.deleteSet(id)}
+              onReorder={(ids) => repo.reorderSets(ids)}
+            />
           )}
 
           {/* Set entry — only once started */}
@@ -317,7 +316,19 @@ export default function Workout() {
                   unit={settings.unit}
                   decimal
                 />
-                <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+                {metric === 'time' ? (
+                  <Stepper
+                    label="Time"
+                    unit="sec"
+                    value={reps}
+                    onChange={setReps}
+                    step={5}
+                    min={0}
+                    autoFocus
+                  />
+                ) : (
+                  <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+                )}
               </div>
             </div>
           )}

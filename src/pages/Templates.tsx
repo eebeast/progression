@@ -29,21 +29,22 @@ export default function Templates() {
         }
       />
 
-      {templates.length === 0 ? (
-        <EmptyState
-          icon={<LayoutGrid className="h-10 w-10" />}
-          title="No plans yet"
-          description="Create a workout plan to get started."
-          action={
-            <Button onClick={() => navigate('/templates/new')}>
-              <Plus className="h-4 w-4" />
-              New plan
-            </Button>
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2">
-          {templates.map((t) => (
+      <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+        {templates.length === 0 ? (
+          <EmptyState
+            icon={<LayoutGrid className="h-10 w-10" />}
+            title="No plans yet"
+            description="Create a workout plan to get started."
+            action={
+              <Button onClick={() => navigate('/templates/new')}>
+                <Plus className="h-4 w-4" />
+                New plan
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2">
+            {templates.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -58,9 +59,10 @@ export default function Templates() {
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </button>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

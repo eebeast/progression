@@ -43,7 +43,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
       <header
         className="flex items-center justify-between px-5 pb-2 pt-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}

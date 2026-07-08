@@ -359,6 +359,7 @@ export class DexieRepository implements WorkoutRepository {
       setNumber: existing.length + 1,
       weight: input.weight,
       reps: input.reps,
+      metric: input.metric ?? 'reps',
       isWarmup: input.isWarmup ?? false,
       timestamp: Date.now(),
     };
@@ -383,6 +384,15 @@ export class DexieRepository implements WorkoutRepository {
         remaining.map((l, i) =>
           l.setNumber === i + 1 ? Promise.resolve() : this.db.logs.update(l.id, { setNumber: i + 1 }),
         ),
+      );
+    });
+  }
+
+  /** Persist a new set order by renumbering each set to its position (1-based). */
+  async reorderSets(orderedIds: string[]): Promise<void> {
+    await this.db.transaction('rw', this.db.logs, async () => {
+      await Promise.all(
+        orderedIds.map((id, i) => this.db.logs.update(id, { setNumber: i + 1 })),
       );
     });
   }

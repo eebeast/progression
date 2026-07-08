@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Stepper } from '@/components/Stepper';
-import type { Exercise, TemplateExercise } from '@/types';
+import { cn } from '@/lib/utils';
+import type { Exercise, Metric, TemplateExercise } from '@/types';
 
 interface EditRow {
   key: string;
   name: string;
   targetSets: number;
   targetRepRange: string;
+  metric: Metric;
 }
 
 const blankRow = (): EditRow => ({
@@ -22,6 +24,7 @@ const blankRow = (): EditRow => ({
   name: '',
   targetSets: 3,
   targetRepRange: '8-12',
+  metric: 'reps',
 });
 
 export default function TemplateEditor() {
@@ -54,6 +57,7 @@ export default function TemplateEditor() {
             name: e.name,
             targetSets: e.targetSets,
             targetRepRange: e.targetRepRange,
+            metric: e.metric ?? 'reps',
           })),
       );
       setLoaded(true);
@@ -104,6 +108,7 @@ export default function TemplateEditor() {
         name: ex.name,
         targetSets: r.targetSets,
         targetRepRange: r.targetRepRange.trim() || '–',
+        metric: r.metric,
         order: i,
       };
     });
@@ -199,6 +204,25 @@ export default function TemplateEditor() {
                 </button>
               </div>
 
+              <div className="mb-3 flex rounded-lg border border-border p-1">
+                {(['reps', 'time'] as Metric[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={r.metric === m}
+                    onClick={() => updateRow(r.key, { metric: m })}
+                    className={cn(
+                      'flex-1 rounded-md py-1.5 text-sm font-semibold capitalize transition-colors',
+                      r.metric === m
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {m === 'reps' ? 'Reps' : 'Time'}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <Stepper
                   label="Sets"
@@ -209,12 +233,12 @@ export default function TemplateEditor() {
                 />
                 <div className="flex flex-col gap-2">
                   <span className="text-center text-sm font-medium text-muted-foreground">
-                    Rep range
+                    {r.metric === 'time' ? 'Seconds' : 'Rep range'}
                   </span>
                   <Input
                     value={r.targetRepRange}
                     onChange={(e) => updateRow(r.key, { targetRepRange: e.target.value })}
-                    placeholder="8-12"
+                    placeholder={r.metric === 'time' ? '30-45' : '8-12'}
                     className="h-14 text-center text-lg font-semibold"
                   />
                 </div>
