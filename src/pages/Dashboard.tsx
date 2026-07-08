@@ -1,10 +1,18 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Clock, Dumbbell, Play, Settings as SettingsIcon, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Dumbbell,
+  Play,
+  Settings as SettingsIcon,
+  Trash2,
+} from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
-import { deriveTodayTemplate, getUpcoming } from '@/utils/program';
+import { deriveTodayTemplate, getRotation } from '@/utils/program';
 import { greeting } from '@/utils/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,7 +37,29 @@ export default function Dashboard() {
     () => deriveTodayTemplate(templates, completed[0] ?? null),
     [templates, completed],
   );
-  const upcoming = React.useMemo(() => getUpcoming(templates, today, 2), [templates, today]);
+  // The template we last finished — it anchors the rotation (today is the one
+  // after it) and stays pinned when the upcoming days are reordered.
+  const anchor = React.useMemo(
+    () => templates.find((t) => t.id === completed[0]?.templateId) ?? null,
+    [templates, completed],
+  );
+  // The rotation as reorderable days: index 0 is today, then tomorrow, next, …
+  const rotation = React.useMemo(
+    () => getRotation(templates, today, anchor?.id ?? null),
+    [templates, today, anchor],
+  );
+  const upNext = rotation.slice(1);
+
+  // Move a day within the rotation and persist. Prepending the anchor keeps
+  // `deriveTodayTemplate` reproducing exactly the new sequence.
+  const moveDay = (from: number, to: number) => {
+    if (to < 0 || to >= rotation.length || from === to) return;
+    const next = [...rotation];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const ids = [...(anchor ? [anchor.id] : []), ...next.map((t) => t.id)];
+    repo.reorderTemplates(ids);
+  };
 
   const begin = async (template: WorkoutTemplate) => {
     const id = await repo.startSession(template);
@@ -166,24 +196,50 @@ export default function Dashboard() {
           </div>
         )}
 
-        {upcoming.length > 0 && (
+        {upNext.length > 0 && (
           <div>
-            <h3 className="mb-2 text-sm font-medium text-muted-foreground">Upcoming</h3>
+            <div className="mb-2 flex items-baseline justify-between">
+              <h3 className="text-sm font-medium text-muted-foreground">Up next</h3>
+              <span className="text-xs text-muted-foreground">Reorder with the arrows</span>
+            </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              {upcoming.map((t, i) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
-                >
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {i === 0 ? 'Tomorrow' : 'Next'}
-                    </p>
-                    <p className="font-semibold">{t.name}</p>
+              {upNext.map((t, j) => {
+                const i = j + 1; // index within the rotation (0 = today)
+                const isLast = i === rotation.length - 1;
+                return (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {i === 1 ? 'Tomorrow' : i === 2 ? 'Next' : 'Later'}
+                      </p>
+                      <p className="truncate font-semibold">{t.name}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="mr-1 text-sm text-muted-foreground">{t.estimatedMinutes}m</span>
+                      <button
+                        type="button"
+                        aria-label={`Move ${t.name} earlier`}
+                        onClick={() => moveDay(i, i - 1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Move ${t.name} later`}
+                        disabled={isLast}
+                        onClick={() => moveDay(i, i + 1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-sm text-muted-foreground">{t.estimatedMinutes}m</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

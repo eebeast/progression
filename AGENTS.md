@@ -72,6 +72,12 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping
   `SetRow`.
+- **Reorder rotation** — Dashboard "Up next" up/down arrows reorder the program via
+  `reorderTemplates(orderedIds)` (sets each `order` to its array index). Today/upcoming are
+  derived in `utils/program.ts` (`deriveTodayTemplate`, `getRotation`, `getUpcoming`) from
+  template `order`, anchored to the last-completed template. `moveDay` in `Dashboard.tsx`
+  persists `[anchor, ...reorderedRotation]` so the anchor stays pinned and the derivation
+  reproduces the new sequence.
 
 ## Routes
 

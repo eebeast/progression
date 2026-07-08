@@ -103,6 +103,8 @@ export interface WorkoutRepository {
   createTemplate(input: TemplateInput): Promise<string>;
   updateTemplate(id: string, patch: TemplateInput): Promise<void>;
   deleteTemplate(id: string): Promise<void>;
+  /** Persist a new program order: each id's `order` becomes its array index. */
+  reorderTemplates(orderedIds: string[]): Promise<void>;
 
   // sessions
   observeActiveSession(): Observable<WorkoutSession | null>;

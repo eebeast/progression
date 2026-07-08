@@ -10,7 +10,7 @@ All data lives on your device in IndexedDB. Nothing is sent anywhere; there is n
 
 ## Features
 
-- **Today** — a Push/Pull/Legs program that suggests the next session based on what you last completed, with upcoming days at a glance.
+- **Today** — a Push/Pull/Legs program that suggests the next session based on what you last completed, with upcoming days at a glance. Reorder the queue with the up/down arrows (e.g. swap today and tomorrow) — it persists as your program order.
 - **Workout logging** — big, thumb-friendly weight/rep steppers, last-performed hints per exercise, and a green flash when a set saves. Sets are **drag-to-reorder**, and per-exercise **time-based** logging (seconds) is supported alongside reps.
 - **Warm-up sets** — tag a set as a warm-up with the toggle chip; it renders muted with a "W" badge and is excluded from targets, the progress bar, and personal records, but still recorded.
 - **Personal records** — the best lift on file per exercise (heaviest weight ever, and most reps at that weight), shown as `Best: …` on the Workout screen and the exercise page, with a `🏆 New PR` badge when a set beats the prior record. Derived live, never stored.
