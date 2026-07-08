@@ -72,12 +72,14 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping
   `SetRow`.
-- **Reorder rotation** — Dashboard "Up next" up/down arrows reorder the program via
-  `reorderTemplates(orderedIds)` (sets each `order` to its array index). Today/upcoming are
-  derived in `utils/program.ts` (`deriveTodayTemplate`, `getRotation`, `getUpcoming`) from
-  template `order`, anchored to the last-completed template. `moveDay` in `Dashboard.tsx`
-  persists `[anchor, ...reorderedRotation]` so the anchor stays pinned and the derivation
-  reproduces the new sequence.
+- **Reorder rotation** — the Dashboard "Up next" list is the single place to both **start
+  any day** (tap a row) and **reorder** it (up/down arrows), replacing the old "Start a
+  different workout" picker. Rows = `getRotation(...)` (non-anchor days, reorderable) plus
+  the anchor appended as a startable-only loop-back row. Reorder persists via
+  `reorderTemplates(orderedIds)` (each `order` = array index); `moveDay` writes
+  `[anchor, ...reorderedRotation]` so the anchor stays pinned and `deriveTodayTemplate`
+  reproduces the new sequence. Today/upcoming derive from template `order` in
+  `utils/program.ts` (`deriveTodayTemplate`, `getRotation`, `getUpcoming`).
 
 ## Routes
 
@@ -120,9 +122,12 @@ registers jest-dom matchers and RTL cleanup. Two layers:
 - **Leaf components/hooks** — behavior via accessible queries + `user-event` (`Stepper`,
   `SetRow`, `WarmupToggle`, `FeelingPicker`, `ShareButton`, `useObservable`). Test what the
   user sees/does, not internals; use real components (stub only browser boundaries like
-  `navigator.share`/`clipboard`). Container pages (`Dashboard`, `Workout`, `Activity`, …)
-  are not yet covered — add integration tests with a fake `WorkoutRepository` via
-  `RepositoryProvider` when you touch them.
+  `navigator.share`/`clipboard`).
+- **Container pages** — integration tests with a fake `WorkoutRepository` injected via
+  `RepositoryProvider repository={…}` and wrapped in `MemoryRouter`; use `of(value)` from
+  `@/storage/repository` for the reactive reads. `Dashboard.test.tsx` is the reference
+  pattern. `Workout`, `Activity`, `Summary`, etc. are still uncovered — follow that pattern
+  when you touch them.
 
 **Coverage:** `npm run test:coverage` (v8). CI runs it and uploads the `coverage/` report
 as an artifact; there is no hard threshold yet (utils are well covered; pages/storage are
