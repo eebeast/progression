@@ -16,7 +16,6 @@ import { deriveTodayTemplate, getRotation } from '@/utils/program';
 import { greeting } from '@/utils/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import type { WorkoutSession, WorkoutTemplate } from '@/types';
 
 export default function Dashboard() {
@@ -30,7 +29,6 @@ export default function Dashboard() {
     useObservable(() => repo.observeCompletedSessions(), [repo]) ?? ([] as WorkoutSession[]);
   const active = useObservable(() => repo.observeActiveSession(), [repo]);
 
-  const [pickerOpen, setPickerOpen] = React.useState(false);
   const [confirmDiscard, setConfirmDiscard] = React.useState(false);
 
   const today = React.useMemo(
@@ -48,7 +46,9 @@ export default function Dashboard() {
     () => getRotation(templates, today, anchor?.id ?? null),
     [templates, today, anchor],
   );
-  const upNext = rotation.slice(1);
+  // What we render: the rotation (reorderable) plus the anchor appended as a
+  // startable loop-back row, so every workout can be started from one place.
+  const startable = anchor ? [...rotation, anchor] : rotation;
 
   // Move a day within the rotation and persist. Prepending the anchor keeps
   // `deriveTodayTemplate` reproducing exactly the new sequence.
@@ -165,78 +165,62 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {templates && templates.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setPickerOpen((o) => !o)}
-              className="flex w-full items-center justify-between py-1 text-sm font-medium text-muted-foreground"
-            >
-              Start a different workout
-              <ChevronDown className={cn('h-4 w-4 transition-transform', pickerOpen && 'rotate-180')} />
-            </button>
-            {pickerOpen && (
-              <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-                {templates.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    disabled={!!active}
-                    onClick={() => begin(t)}
-                    className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left hover:bg-muted/50 disabled:opacity-50"
-                  >
-                    <span className="font-semibold">{t.name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {t.exercises.length} · {t.estimatedMinutes}m
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {upNext.length > 0 && (
+        {startable.length > 0 && (
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-medium text-muted-foreground">Up next</h3>
-              <span className="text-xs text-muted-foreground">Reorder with the arrows</span>
+              {rotation.length > 1 && (
+                <span className="text-xs text-muted-foreground">Reorder with the arrows</span>
+              )}
             </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              {upNext.map((t, j) => {
-                const i = j + 1; // index within the rotation (0 = today)
-                const isLast = i === rotation.length - 1;
+              {startable.map((t, i) => {
+                const reorderable = rotation.length > 1 && i < rotation.length;
+                const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : i === 2 ? 'Next' : 'Later';
                 return (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3"
+                    className="flex items-center justify-between gap-1 rounded-lg border border-border bg-card pl-4 pr-2"
                   >
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {i === 1 ? 'Tomorrow' : i === 2 ? 'Next' : 'Later'}
-                      </p>
-                      <p className="truncate font-semibold">{t.name}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="mr-1 text-sm text-muted-foreground">{t.estimatedMinutes}m</span>
-                      <button
-                        type="button"
-                        aria-label={`Move ${t.name} earlier`}
-                        onClick={() => moveDay(i, i - 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Move ${t.name} later`}
-                        disabled={isLast}
-                        onClick={() => moveDay(i, i + 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-30"
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={!!active}
+                      onClick={() => begin(t)}
+                      aria-label={`Start ${t.name}`}
+                      className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 pr-2 text-left transition-opacity hover:opacity-70 disabled:opacity-50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </span>
+                        <span className="block truncate font-semibold">{t.name}</span>
+                      </span>
+                      <span className="shrink-0 text-sm text-muted-foreground">
+                        {t.exercises.length} · {t.estimatedMinutes}m
+                      </span>
+                    </button>
+                    {reorderable && (
+                      <div className="flex shrink-0 items-center gap-1 border-l border-border pl-1">
+                        <button
+                          type="button"
+                          aria-label={`Move ${t.name} earlier`}
+                          disabled={i === 0}
+                          onClick={() => moveDay(i, i - 1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-30"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Move ${t.name} later`}
+                          disabled={i === rotation.length - 1}
+                          onClick={() => moveDay(i, i + 1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-30"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
