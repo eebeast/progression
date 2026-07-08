@@ -95,14 +95,21 @@ export default function Workout() {
   const metric: Metric = current?.metric ?? 'reps';
 
   // Pre-fill weight and reps when the exercise changes: last set this session,
-  // else the matching set from the last workout.
+  // else the matching set from the last workout. Depend on `lastWorkout` itself
+  // (not its session id) so we re-run when the async refetch resolves — two
+  // exercises from the same past session share a session id, and only guarding
+  // on that would leave the previous exercise's values stuck here.
   React.useEffect(() => {
     if (!current) return;
     if (currentLogs.length > 0) {
       const last = currentLogs[currentLogs.length - 1];
       setWeight(last.weight);
       setReps(last.reps);
-    } else if (lastWorkout && lastWorkout.sets.length > 0) {
+    } else if (
+      lastWorkout &&
+      lastWorkout.sets.length > 0 &&
+      lastWorkout.sets[0].exerciseId === current.exerciseId
+    ) {
       setWeight(lastWorkout.sets[0].weight);
       setReps(lastWorkout.sets[0].reps);
     } else {
@@ -110,7 +117,7 @@ export default function Workout() {
       setReps(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.exerciseId, lastWorkout?.session.id]);
+  }, [current?.exerciseId, lastWorkout]);
 
   // Flash the newest set once the live logs reflect a just-saved set.
   const pendingFlash = React.useRef(false);
