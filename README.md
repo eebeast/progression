@@ -97,12 +97,19 @@ Then open the printed local URL. On first launch a one-screen onboarding asks fo
 
 ## Testing & CI
 
-Pure-logic helpers are unit-tested with **Vitest** (`src/utils/*.test.ts`) — personal
-records, program/rotation derivation, the share recap, formatting, and streaks. Run
-`npm test`.
+Tested with **Vitest** + **React Testing Library** (jsdom):
 
-GitHub Actions (`.github/workflows/ci.yml`) runs lint → typecheck → test → build on every
-push and pull request to `main`.
+- **Pure utils** (`src/utils/*.test.ts`) — personal records, program/rotation derivation,
+  the share recap, formatting, run metrics, and streaks.
+- **Leaf components & hooks** (`*.test.tsx`) — behavior via accessible queries and
+  `user-event` (`Stepper`, `SetRow`, `WarmupToggle`, `FeelingPicker`, `ShareButton`,
+  `useObservable`).
+
+Run `npm test`, or `npm run test:coverage` for a coverage report (v8).
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint → typecheck → test (with coverage) →
+build on every push and pull request to `main`, and uploads the coverage report as an
+artifact.
 
 ## Data & privacy
 
