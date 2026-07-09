@@ -15,6 +15,7 @@ All data lives on your device in IndexedDB. Nothing is sent anywhere; there is n
 - **Warm-up sets** — tag a set as a warm-up with the toggle chip; it renders muted with a "W" badge and is excluded from targets, the progress bar, and personal records, but still recorded.
 - **Personal records** — the best lift on file per exercise (heaviest weight ever, and most reps at that weight), shown as `Best: …` on the Workout screen and the exercise page, with a `🏆 New PR` badge when a set beats the prior record. Derived live, never stored.
 - **Exercise top sets** — tap any exercise name to drill into `/exercise/:id`: its personal record plus the **top 4 sets ever** with the date each was performed. An optional **Exercises tab** (toggle in Settings) lists every exercise to browse these directly.
+- **Progress chart** — the app's single, deliberately minimal chart, on the exercise page: one dot per session in chronological order, toggled between top-set weight and total working sets. A plain plot of logged facts — no trend line, projection, or moving average. Hidden until there are ≥2 sessions.
 - **Share** — a Share button on the Summary and History-detail pages builds a plain-text recap (native share sheet on mobile, clipboard elsewhere).
 - **Activity** — a month calendar with current/best streaks, manual run logging (distance + time) with derived pace/speed, and a **body-weight log** (date + weight, editable list). Completed lifts and runs count as active days toward a weekly goal.
 - **History** — every finished workout and logged run, interleaved most-recent-first; workouts are tappable for the full set-by-set detail, runs are editable inline.
@@ -27,7 +28,7 @@ All data lives on your device in IndexedDB. Nothing is sent anywhere; there is n
 - **React 18 + TypeScript + Vite 5**
 - **Tailwind CSS 3** with CSS-variable + `color-mix` design tokens (an Apple-derived palette, WCAG AA)
 - **Dexie 4 / IndexedDB** for storage, exposed reactively via `liveQuery`
-- **React Router 6**, **lucide-react** icons
+- **React Router 6**, **lucide-react** icons, **recharts** (the lone exercise-progress chart)
 - **vite-plugin-pwa** for the installable/offline shell
 
 ## Architecture

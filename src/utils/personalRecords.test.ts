@@ -1,17 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { getRecord, getRecordSetIds, getTopSets, type DatedSet } from '@/utils/personalRecords';
+import {
+  getRecord,
+  getRecordSetIds,
+  getSessionProgress,
+  getTopSets,
+  type DatedSet,
+} from '@/utils/personalRecords';
 import type { ExerciseLog } from '@/types';
 
 let seq = 0;
 function log(
   weight: number,
   reps: number,
-  opts: { warmup?: boolean; ts?: number; id?: string } = {},
+  opts: { warmup?: boolean; ts?: number; id?: string; session?: string } = {},
 ): ExerciseLog {
   seq += 1;
   return {
     id: opts.id ?? `l${seq}`,
-    sessionId: 's1',
+    sessionId: opts.session ?? 's1',
     exerciseId: 'e1',
     exerciseName: 'Bench',
     setNumber: seq,
@@ -101,5 +107,63 @@ describe('getTopSets', () => {
     const top = getTopSets(many, 4);
     expect(top).toHaveLength(4);
     expect(top[0]).toEqual({ weight: 50, reps: 5, date: 1 });
+  });
+});
+
+describe('getSessionProgress', () => {
+  it('returns one point per session in chronological order', () => {
+    const logs = [
+      log(100, 5, { session: 'b' }),
+      log(90, 5, { session: 'a' }),
+    ];
+    const dates = new Map([
+      ['a', 10],
+      ['b', 20],
+    ]);
+    const points = getSessionProgress(logs, dates);
+    expect(points.map((p) => p.sessionId)).toEqual(['a', 'b']);
+    expect(points.map((p) => p.date)).toEqual([10, 20]);
+  });
+
+  it('uses the heaviest working set, then most reps, for the top values', () => {
+    const logs = [
+      log(100, 5, { session: 'a' }),
+      log(105, 3, { session: 'a' }),
+      log(105, 6, { session: 'a' }),
+    ];
+    const [p] = getSessionProgress(logs, new Map([['a', 1]]));
+    expect(p.topWeight).toBe(105);
+    expect(p.topReps).toBe(6);
+  });
+
+  it('excludes warm-ups from the count and the top set', () => {
+    const logs = [
+      log(200, 1, { session: 'a', warmup: true }),
+      log(100, 5, { session: 'a' }),
+      log(110, 4, { session: 'a' }),
+    ];
+    const [p] = getSessionProgress(logs, new Map([['a', 1]]));
+    expect(p.workingSets).toBe(2);
+    expect(p.topWeight).toBe(110);
+  });
+
+  it('skips sessions with only warm-ups', () => {
+    const logs = [
+      log(200, 1, { session: 'a', warmup: true }),
+      log(100, 5, { session: 'b' }),
+    ];
+    const dates = new Map([
+      ['a', 1],
+      ['b', 2],
+    ]);
+    expect(getSessionProgress(logs, dates).map((p) => p.sessionId)).toEqual(['b']);
+  });
+
+  it('drops logs whose session has no date (not completed)', () => {
+    const logs = [
+      log(100, 5, { session: 'a' }),
+      log(120, 5, { session: 'ghost' }),
+    ];
+    expect(getSessionProgress(logs, new Map([['a', 1]])).map((p) => p.sessionId)).toEqual(['a']);
   });
 });

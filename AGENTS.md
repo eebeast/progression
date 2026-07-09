@@ -6,7 +6,7 @@ you add features or change conventions.
 ## What this is
 
 **Progression** — a local-first workout tracker PWA. React 18 + TypeScript + Vite 5,
-Tailwind 3, Dexie 4 / IndexedDB, React Router 6, lucide-react, vite-plugin-pwa.
+Tailwind 3, Dexie 4 / IndexedDB, React Router 6, lucide-react, recharts, vite-plugin-pwa.
 No backend, no auth, no network — all data lives in the browser's IndexedDB.
 
 ## Non-negotiable design principle
@@ -67,6 +67,14 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
   dedup by weight×reps keeping the most recent date). Entry points: exercise title in
   `Workout`, group headings in `HistoryDetail`, and — when `settings.showExerciseLibrary`
   is on — an "Exercises" nav tab (`AppShell`) → `/exercises` (`pages/Exercises.tsx`).
+- **Progress chart** — the app's one chart, on `ExerciseHistory` below the PR:
+  `components/ExerciseProgressChart.tsx` (recharts `LineChart`, ~180px, `var(--primary)`
+  line/dots, no gridlines/legend), fed by `getSessionProgress(logs, dateBySession)` in
+  `utils/personalRecords.ts` — one point per completed session (warm-ups excluded,
+  only-warmup sessions skipped), chronological. A pill toggle switches the y metric
+  between top-set weight and working-set count. Facts only: **no** trend/projection/average;
+  renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
+  `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
   `components/ShareButton.tsx` (`navigator.share`, else clipboard). Used in `Summary`
   and `HistoryDetail`.
