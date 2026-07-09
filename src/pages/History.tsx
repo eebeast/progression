@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, History as HistoryIcon } from 'lucide-react';
+import { Dumbbell, History as HistoryIcon } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { PageHeader } from '@/components/PageHeader';
 import { RunRow } from '@/components/RunRow';
-import { EmptyState, FEELING_EMOJI } from '@/components/FeelingPicker';
+import { LogCard } from '@/components/LogCard';
+import { EmptyState } from '@/components/FeelingPicker';
 import { formatDate, formatDuration } from '@/utils/format';
 import type { Run, WorkoutSession } from '@/types';
 
@@ -44,26 +45,16 @@ export default function HistoryPage() {
           <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2">
             {items.map((item) =>
               item.kind === 'workout' ? (
-                <button
+                <LogCard
                   key={item.session.id}
-                  type="button"
+                  icon={<Dumbbell className="h-4 w-4" />}
+                  title={item.session.templateName}
+                  subtitle={`${formatDate(item.session.date)} · ${formatDuration(
+                    (item.session.endTime ?? item.session.startTime) - item.session.startTime,
+                  )}`}
+                  feeling={item.session.feeling}
                   onClick={() => navigate(`/history/${item.session.id}`)}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted/50"
-                >
-                  <div>
-                    <p className="font-semibold">{item.session.templateName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(item.session.date)} ·{' '}
-                      {formatDuration((item.session.endTime ?? item.session.startTime) - item.session.startTime)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.session.feeling && (
-                      <span className="text-xl">{FEELING_EMOJI[item.session.feeling]}</span>
-                    )}
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </button>
+                />
               ) : (
                 <RunRow
                   key={item.run.id}

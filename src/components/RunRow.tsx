@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Check, MapPin, Trash2, X } from 'lucide-react';
 import type { Run } from '@/types';
 import { Button } from '@/components/ui/button';
+import { LogCard } from '@/components/LogCard';
 import {
   RunFields,
   draftFromRun,
@@ -71,25 +72,14 @@ export function RunRow({ run, showDate = false, onSave, onDelete }: RunRowProps)
     );
   }
 
+  const stats = `${formatPace(run)} · ${formatSpeed(run)}`;
   return (
-    <button
-      type="button"
+    <LogCard
+      icon={<MapPin className="h-4 w-4" />}
+      title={`${formatDistanceKm(run.distanceKm)} · ${formatRunTime(run.durationSeconds)}`}
+      subtitle={showDate ? `${formatDate(run.date)} · ${stats}` : stats}
+      feeling={run.feeling}
       onClick={() => setEditing(true)}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50"
-    >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <MapPin className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold tabular-nums">
-          {formatDistanceKm(run.distanceKm)} <span className="text-muted-foreground">·</span>{' '}
-          {formatRunTime(run.durationSeconds)}
-        </p>
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {formatPace(run)} · {formatSpeed(run)}
-        </p>
-        {showDate && <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(run.date)}</p>}
-      </div>
-    </button>
+    />
   );
 }
