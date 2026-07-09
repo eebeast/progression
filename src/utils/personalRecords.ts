@@ -60,6 +60,55 @@ export function getTopSets(sets: DatedSet[], limit = 4): TopSet[] {
     .slice(0, limit);
 }
 
+export interface SessionPoint {
+  sessionId: string;
+  date: number;
+  /** Heaviest working-set weight that session. */
+  topWeight: number;
+  /** Reps of that heaviest set (most reps among sets at that weight). */
+  topReps: number;
+  /** Number of working sets logged that session. */
+  workingSets: number;
+}
+
+/**
+ * One point per completed session that logged at least one working set, in
+ * chronological order. Warm-ups are excluded; sessions with only warm-ups are
+ * skipped. Facts only — no trend, projection, or moving average.
+ *
+ * `logs` are all logs for a single exercise; `dateBySession` maps a completed
+ * session id to its date (sessions with no entry here are dropped).
+ */
+export function getSessionProgress(
+  logs: ExerciseLog[],
+  dateBySession: Map<string, number>,
+): SessionPoint[] {
+  const bySession = new Map<string, ExerciseLog[]>();
+  for (const log of logs) {
+    if (log.isWarmup) continue;
+    if (!dateBySession.has(log.sessionId)) continue;
+    const bucket = bySession.get(log.sessionId);
+    if (bucket) bucket.push(log);
+    else bySession.set(log.sessionId, [log]);
+  }
+
+  const points: SessionPoint[] = [];
+  for (const [sessionId, sets] of bySession) {
+    let top = sets[0];
+    for (const s of sets) {
+      if (s.weight > top.weight || (s.weight === top.weight && s.reps > top.reps)) top = s;
+    }
+    points.push({
+      sessionId,
+      date: dateBySession.get(sessionId)!,
+      topWeight: top.weight,
+      topReps: top.reps,
+      workingSets: sets.length,
+    });
+  }
+  return points.sort((a, b) => a.date - b.date);
+}
+
 /**
  * The ids of every working set that set a NEW record at the moment it was
  * logged — i.e. it beat the best of all strictly-earlier working sets (by

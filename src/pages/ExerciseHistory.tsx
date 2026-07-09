@@ -6,7 +6,8 @@ import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
-import { getRecord, getTopSets, type DatedSet } from '@/utils/personalRecords';
+import { getRecord, getSessionProgress, getTopSets, type DatedSet } from '@/utils/personalRecords';
+import { ExerciseProgressChart } from '@/components/ExerciseProgressChart';
 import { formatDate } from '@/utils/format';
 import type { ExerciseLog, WorkoutSession } from '@/types';
 
@@ -26,9 +27,13 @@ export default function ExerciseHistory() {
   const exerciseName = logs[0]?.exerciseName ?? 'Exercise';
   const record = React.useMemo(() => getRecord(logs), [logs]);
 
+  const dateBySession = React.useMemo(
+    () => new Map(sessions.map((s) => [s.id, s.date])),
+    [sessions],
+  );
+
   // The best sets ever, each dated by the completed session that logged it.
   const topSets = React.useMemo(() => {
-    const dateBySession = new Map(sessions.map((s) => [s.id, s.date]));
     const dated: DatedSet[] = [];
     for (const log of logs) {
       const date = dateBySession.get(log.sessionId);
@@ -36,7 +41,13 @@ export default function ExerciseHistory() {
       dated.push({ weight: log.weight, reps: log.reps, date, isWarmup: log.isWarmup });
     }
     return getTopSets(dated, 4);
-  }, [logs, sessions]);
+  }, [logs, dateBySession]);
+
+  // One point per session for the progress chart, chronological.
+  const progress = React.useMemo(
+    () => getSessionProgress(logs, dateBySession),
+    [logs, dateBySession],
+  );
 
   return (
     <div>
@@ -68,6 +79,14 @@ export default function ExerciseHistory() {
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">No working sets logged yet.</p>
           )}
+        </div>
+
+        {/* Progress — one point per session; facts only, no trend line */}
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Progress
+          </p>
+          <ExerciseProgressChart points={progress} unit={settings.unit} />
         </div>
 
         {/* Top sets — the best efforts, with the date each was performed */}
