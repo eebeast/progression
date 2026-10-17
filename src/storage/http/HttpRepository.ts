@@ -13,6 +13,7 @@ import type {
   ExerciseLog,
   Run,
   Settings,
+  TemplateExercise,
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
@@ -51,6 +52,11 @@ export class HttpRepository implements WorkoutRepository {
   bulkCreateExercises(_list: Exercise[]): Promise<void> {
     return TODO();
   }
+  observeExercises(): Observable<Exercise[]> { return TODO(); }
+  createExercise(_input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string> { return TODO(); }
+  updateExercise(_id: string, _patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> { return TODO(); }
+  previewExerciseMerge(_source: string, _target: string): Promise<{ templates: number; sessions: number; sets: number }> { return TODO(); }
+  mergeExercises(_source: string, _target: string): Promise<void> { return TODO(); }
 
   // templates
   observeTemplates(): Observable<WorkoutTemplate[]> {
@@ -106,6 +112,8 @@ export class HttpRepository implements WorkoutRepository {
   deleteSession(_id: string): Promise<void> {
     return TODO();
   }
+  addSessionExercise(_id: string, _exercise: TemplateExercise): Promise<void> { return TODO(); }
+  setRestTimer(_id: string, _endsAt: number | null): Promise<void> { return TODO(); }
 
   // logs
   observeSessionLogs(_sessionId: string): Observable<ExerciseLog[]> {

@@ -44,6 +44,7 @@ export function of<T>(value: T): Observable<T> {
 /* ------------------------------ Input shapes ------------------------------ */
 
 export interface NewSetInput {
+  assignmentId?: string;
   sessionId: string;
   exerciseId: string;
   exerciseName: string;
@@ -96,6 +97,11 @@ export interface WorkoutRepository {
   // exercises (global library)
   listExercises(): Promise<Exercise[]>;
   bulkCreateExercises(list: Exercise[]): Promise<void>;
+  observeExercises(): Observable<Exercise[]>;
+  createExercise(input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string>;
+  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void>;
+  previewExerciseMerge(sourceId: string, targetId: string): Promise<{ templates: number; sessions: number; sets: number }>;
+  mergeExercises(sourceId: string, targetId: string): Promise<void>;
 
   // templates
   observeTemplates(): Observable<WorkoutTemplate[]>;
@@ -118,6 +124,8 @@ export interface WorkoutRepository {
   finishSession(id: string, meta: SessionMeta): Promise<void>;
   discardSession(id: string): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  addSessionExercise(id: string, exercise: TemplateExercise): Promise<void>;
+  setRestTimer(id: string, endsAt: number | null): Promise<void>;
 
   // logs (sets)
   observeSessionLogs(sessionId: string): Observable<ExerciseLog[]>;

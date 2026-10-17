@@ -21,9 +21,16 @@ export interface Exercise {
   id: string;
   name: string;
   createdAt: number;
+  primaryMuscle?: string;
+  equipment?: string;
+  archivedAt?: number;
+  /** Explicit merge audit; the source definition is retained. */
+  merge?: { targetId: string; timestamp: number };
 }
 
 export interface TemplateExercise {
+  assignmentId?: string;
+  restSeconds?: number;
   exerciseId: string;
   name: string;
   targetSets: number;
@@ -48,6 +55,7 @@ export interface WorkoutSession {
   templateName: string;
   /** Plan at start time; absent on legacy sessions. Never rebuilt on import. */
   exercises?: TemplateExercise[];
+  restEndsAt?: number | null;
   date: number;
   startTime: number;
   endTime: number | null;
@@ -61,6 +69,7 @@ export interface ExerciseLog {
   sessionId: string;
   exerciseId: string;
   exerciseName: string;
+  assignmentId?: string;
   setNumber: number;
   weight: number;
   reps: number; // rep count, or duration in seconds when metric === 'time'

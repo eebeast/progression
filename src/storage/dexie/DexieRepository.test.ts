@@ -10,7 +10,7 @@ const repo = new DexieRepository();
 const template: WorkoutTemplate = {
   id: 'plan', name: 'Original plan', order: 0, estimatedMinutes: 30,
   createdAt: 1, updatedAt: 1,
-  exercises: [{ exerciseId: 'exercise', name: 'Squat', targetSets: 3, targetRepRange: '8-12', order: 0 }],
+  exercises: [{ assignmentId: 'assignment', exerciseId: 'exercise', name: 'Squat', targetSets: 3, targetRepRange: '8-12', order: 0 }],
 };
 const source: BackupShape = {
   app: 'workout-tracker', version: 1, exportedAt: 10,
@@ -118,5 +118,29 @@ describe('IndexedDB persistence', () => {
     expect(templates.length).toBeGreaterThan(0);
     expect(templates.flatMap((plan) => plan.exercises).every((exercise) => ids.has(exercise.exerciseId))).toBe(true);
     expect(await repo.listExercises()).toContainEqual(source.data.exercises[0]);
+  });
+});
+
+describe('canonical exercise management', () => {
+  it('renames future plans while preserving session and set name snapshots', async () => {
+    const id = await repo.startSession(template);
+    await repo.updateExercise('exercise', { name: 'Barbell squat', primaryMuscle: 'Quads' });
+    expect((await repo.getTemplate('plan'))?.exercises[0].name).toBe('Barbell squat');
+    expect((await first(repo.observeSession(id)))?.exercises?.[0].name).toBe('Squat');
+    expect((await first(repo.observeSessionLogs('session')))[0].exerciseName).toBe('Old squat name');
+  });
+  it('merges references transactionally, keeps historical names and retains an audited source', async () => {
+    const targetId = await repo.createExercise({ name: 'Canonical squat' });
+    await repo.startSession(template);
+    expect(await repo.previewExerciseMerge('exercise', targetId)).toEqual({ templates: 1, sessions: 1, sets: 1 });
+    await repo.mergeExercises('exercise', targetId);
+    expect((await first(repo.observeSessionLogs('session')))[0]).toMatchObject({ exerciseId: targetId, exerciseName: 'Old squat name' });
+    expect((await repo.listExercises()).find((e) => e.id === 'exercise')).toMatchObject({ merge: { targetId }, archivedAt: expect.any(Number) });
+    await expect(repo.mergeExercises('exercise', targetId)).rejects.toThrow();
+  });
+  it('archives an exercise without deleting recorded history', async () => {
+    await repo.updateExercise('exercise', { archivedAt: 10 });
+    expect(await first(repo.observeSessionLogs('session'))).toHaveLength(1);
+    expect((await repo.getTemplate('plan'))?.exercises).toHaveLength(1);
   });
 });

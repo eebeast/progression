@@ -353,6 +353,60 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     });
   }
 
+  observeExercises(): Observable<Exercise[]> {
+    return liveQuery(() => this.db.exercises.toArray());
+  }
+
+  async createExercise(input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string> {
+    return this.mutate(async () => {
+      if (!input.name.trim()) throw new Error('An exercise needs a name.');
+      const id = newId();
+      await this.db.exercises.add({ ...input, name: input.name.trim(), id, createdAt: Date.now() });
+      return id;
+    });
+  }
+
+  async updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> {
+    return this.mutate(async () => {
+      const exercise = await this.db.exercises.get(id);
+      if (!exercise) throw new Error('Exercise not found.');
+      if (patch.name !== undefined && !patch.name.trim()) throw new Error('An exercise needs a name.');
+      const next = { ...exercise, ...patch, name: patch.name?.trim() ?? exercise.name };
+      await this.db.exercises.put(next);
+      // Future plan displays follow the canonical name; session/log snapshots do not.
+      if (next.name !== exercise.name) await this.db.templates.toCollection().modify((template) => {
+        template.exercises = template.exercises.map((row) => row.exerciseId === id ? { ...row, name: next.name } : row);
+      });
+    });
+  }
+
+  async previewExerciseMerge(sourceId: string, targetId: string) {
+    if (sourceId === targetId) throw new Error('Choose two different exercises.');
+    const [source, target] = await this.db.exercises.bulkGet([sourceId, targetId]);
+    if (!source || !target || target.archivedAt || source.merge) throw new Error('Choose an existing source and active target.');
+    return {
+      templates: await this.db.templates.filter((row) => row.exercises.some((e) => e.exerciseId === sourceId)).count(),
+      sessions: await this.db.sessions.filter((row) => !!row.exercises?.some((e) => e.exerciseId === sourceId)).count(),
+      sets: await this.db.logs.where('exerciseId').equals(sourceId).count(),
+    };
+  }
+
+  async mergeExercises(sourceId: string, targetId: string): Promise<void> {
+    return this.mutate(async () => {
+      await this.previewExerciseMerge(sourceId, targetId);
+      const target = (await this.db.exercises.get(targetId))!;
+      await this.db.templates.toCollection().modify((row) => {
+        row.exercises = row.exercises.map((e) => e.exerciseId === sourceId ? { ...e, exerciseId: targetId, name: target.name } : e);
+      });
+      await this.db.sessions.toCollection().modify((row) => {
+        if (row.exercises) row.exercises = row.exercises.map((e) => e.exerciseId === sourceId ? { ...e, exerciseId: targetId } : e);
+      });
+      await this.db.logs.where('exerciseId').equals(sourceId).modify({ exerciseId: targetId });
+      const timestamp = Date.now();
+      await this.db.exercises.update(sourceId, { archivedAt: timestamp, merge: { targetId, timestamp } });
+    });
+  }
+
   /* ----------------------------- templates ----------------------------- */
 
   observeTemplates(): Observable<WorkoutTemplate[]> {
@@ -460,7 +514,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         id: newId(),
         templateId: template.id,
         templateName: template.name,
-        exercises: structuredClone(template.exercises),
+        exercises: structuredClone(template.exercises).map((row) => ({ ...row, assignmentId: row.assignmentId ?? newId() })),
         date: now,
         startTime: now,
         endTime: null,
@@ -507,6 +561,23 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   async deleteSession(id: string): Promise<void> {
     return this.mutate(async () => {
       await this.discardSession(id);
+    });
+  }
+
+  async addSessionExercise(id: string, exercise: TemplateExercise): Promise<void> {
+    return this.mutate(async () => {
+      const session = await this.db.sessions.get(id);
+      const canonical = await this.db.exercises.get(exercise.exerciseId);
+      if (!session || session.status !== 'active' || !canonical || canonical.archivedAt) throw new Error('Choose an active exercise and workout.');
+      if (!session.exercises) throw new Error('This older workout has no preserved plan. Start a new workout to add exercises.');
+      const assignments = [...session.exercises, { ...exercise, name: canonical.name, order: session.exercises.length, assignmentId: newId() }];
+      await this.db.sessions.update(id, { exercises: assignments });
+    });
+  }
+
+  async setRestTimer(id: string, endsAt: number | null): Promise<void> {
+    return this.mutate(async () => {
+      await this.db.sessions.update(id, { restEndsAt: endsAt });
     });
   }
 
@@ -576,6 +647,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
           sessionId: input.sessionId,
           exerciseId: input.exerciseId,
           exerciseName: input.exerciseName,
+          assignmentId: input.assignmentId,
           setNumber: Math.max(0, ...existing.map((set) => set.setNumber)) + 1,
           weight: input.weight,
           reps: input.reps,
