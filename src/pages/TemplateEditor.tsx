@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronUp, ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
+import { useObservable } from '@/hooks/useObservable';
 import { newId } from '@/utils/format';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,9 @@ import type { Exercise, Metric, TemplateExercise } from '@/types';
 
 interface EditRow {
   key: string;
+  exerciseId?: string;
+  confirmedDistinct?: boolean;
+  restSeconds?: number;
   name: string;
   targetSets: number;
   targetRepRange: string;
@@ -33,6 +37,9 @@ export default function TemplateEditor() {
   const isNew = !templateId;
 
   const repo = useRepo();
+  const library = useObservable(() => repo.observeExercises(), [repo]) ?? [];
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string>();
   const [loaded, setLoaded] = React.useState(isNew);
   const [name, setName] = React.useState('');
   const [estimatedMinutes, setEstimatedMinutes] = React.useState(60);
@@ -53,7 +60,9 @@ export default function TemplateEditor() {
         [...t.exercises]
           .sort((a, b) => a.order - b.order)
           .map((e) => ({
-            key: newId(),
+            key: e.assignmentId ?? newId(),
+            exerciseId: e.exerciseId,
+            restSeconds: e.restSeconds,
             name: e.name,
             targetSets: e.targetSets,
             targetRepRange: e.targetRepRange,
@@ -86,42 +95,26 @@ export default function TemplateEditor() {
   const canSave = name.trim().length > 0 && validRows.length > 0;
 
   const save = async () => {
-    if (!canSave) return;
-
-    // Map each row's name into the global exercise library (case-insensitive,
-    // create if missing), then write the template through the repository.
-    const library = await repo.listExercises();
-    const byName = new Map(library.map((e) => [e.name.toLowerCase(), e]));
-    const toCreate: Exercise[] = [];
-
-    const exercises: TemplateExercise[] = validRows.map((r, i) => {
-      const trimmed = r.name.trim();
-      const key = trimmed.toLowerCase();
-      let ex = byName.get(key);
-      if (!ex) {
-        ex = { id: newId(), name: trimmed, createdAt: Date.now() };
-        byName.set(key, ex);
-        toCreate.push(ex);
-      }
-      return {
-        exerciseId: ex.id,
-        name: ex.name,
-        targetSets: r.targetSets,
-        targetRepRange: r.targetRepRange.trim() || '–',
-        metric: r.metric,
-        order: i,
-      };
-    });
-
-    if (toCreate.length) await repo.bulkCreateExercises(toCreate);
-
-    const input = { name: name.trim(), estimatedMinutes, exercises };
-    if (isNew) {
-      await repo.createTemplate(input);
-    } else {
-      await repo.updateTemplate(templateId!, input);
-    }
-    navigate('/templates', { replace: true });
+    if (!canSave || saving) return;
+    setSaving(true); setError(undefined);
+    try {
+      const toCreate: Exercise[] = [];
+      const exercises: TemplateExercise[] = validRows.map((row, order) => {
+        const matches = library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === row.name.trim().toLowerCase());
+        if (!row.exerciseId && matches.length && !row.confirmedDistinct) throw new Error('Reuse a matching exercise or confirm a distinct movement.');
+        const id = row.exerciseId ?? newId();
+        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), createdAt: Date.now() });
+        return { assignmentId: row.key, exerciseId: id, name: row.name.trim(), targetSets: row.targetSets,
+          restSeconds: row.restSeconds, targetRepRange: row.targetRepRange.trim() || '–', metric: row.metric, order };
+      });
+      if (toCreate.length) await repo.bulkCreateExercises(toCreate);
+      setRows((current) => current.map((row) => ({ ...row, exerciseId: exercises.find((e) => e.assignmentId === row.key)?.exerciseId ?? row.exerciseId })));
+      const input = { name: name.trim(), estimatedMinutes, exercises };
+      if (isNew) await repo.createTemplate(input);
+      else await repo.updateTemplate(templateId!, input);
+      navigate('/templates', { replace: true });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Plan could not be saved.'); }
+    finally { setSaving(false); }
   };
 
   const remove = async () => {
@@ -149,7 +142,7 @@ export default function TemplateEditor() {
           <button
             type="button"
             onClick={save}
-            disabled={!canSave}
+            disabled={!canSave || saving}
             className="px-1 text-sm font-semibold text-primary disabled:opacity-40"
           >
             Save
@@ -158,6 +151,7 @@ export default function TemplateEditor() {
       />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
+        {error && <p role="alert" className="text-destructive">{error}</p>}
         <div className="flex flex-col gap-2">
           <Label htmlFor="plan-name">Plan name</Label>
           <Input
@@ -187,10 +181,21 @@ export default function TemplateEditor() {
           <Label>Exercises</Label>
           {rows.map((r, i) => (
             <div key={r.key} className="rounded-xl border border-border bg-card p-3">
+              <label className="mb-3 flex flex-col gap-1 text-sm">Library exercise
+                <select aria-label={`Library exercise ${i + 1}`} value={r.exerciseId ?? ''} className="rounded-lg border border-border bg-background p-2"
+                  onChange={(event) => {
+                    const exercise = library.find((e) => e.id === event.target.value);
+                    updateRow(r.key, { exerciseId: exercise?.id, name: exercise?.name ?? '', confirmedDistinct: false });
+                  }}>
+                  <option value="">New custom exercise</option>
+                  {library.filter((e) => !e.archivedAt || e.id === r.exerciseId).map((e) => <option key={e.id} value={e.id}>{e.name}{e.archivedAt ? ' (archived)' : ''}</option>)}
+                </select>
+              </label>
               <div className="mb-3 flex items-center gap-2">
                 <Input
                   value={r.name}
-                  onChange={(e) => updateRow(r.key, { name: e.target.value })}
+                  aria-label={`Exercise name ${i + 1}`}
+                  onChange={(e) => updateRow(r.key, { name: e.target.value, exerciseId: undefined, confirmedDistinct: false })}
                   placeholder="Exercise name"
                   className="flex-1"
                 />
@@ -204,6 +209,12 @@ export default function TemplateEditor() {
                 </button>
               </div>
 
+              {!r.exerciseId && library.some((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()) && <div className="mb-3 flex flex-col gap-2 text-sm">
+                <p>Matching names found. Choose an existing exercise or confirm this is a different movement.</p>
+                {library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()).map((e) =>
+                  <Button key={e.id} variant="outline" onClick={() => updateRow(r.key, { exerciseId: e.id, name: e.name })}>Use existing {e.name}</Button>)}
+                <label><input type="checkbox" checked={!!r.confirmedDistinct} onChange={(e) => updateRow(r.key, { confirmedDistinct: e.target.checked })} /> This is a distinct movement</label>
+              </div>}
               <div className="mb-3 flex rounded-lg border border-border p-1">
                 {(['reps', 'time'] as Metric[]).map((m) => (
                   <button
@@ -244,6 +255,7 @@ export default function TemplateEditor() {
                 </div>
               </div>
 
+              <label className="mt-3 flex flex-col gap-1 text-sm">Rest seconds (optional)<Input type="number" min={0} step={5} value={r.restSeconds ?? ''} onChange={(e) => updateRow(r.key, { restSeconds: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })} /></label>
               <div className="mt-3 flex items-center justify-end gap-1">
                 <button
                   type="button"

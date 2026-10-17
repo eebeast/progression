@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { RepositoryProvider } from '@/storage/RepositoryProvider';
-import type { WorkoutRepository } from '@/storage/repository';
+import { of, type WorkoutRepository } from '@/storage/repository';
 import Exercises from '@/pages/Exercises';
 import type { Exercise } from '@/types';
 
@@ -20,6 +20,7 @@ function ExerciseStub() {
 function renderPage() {
   const repo = {
     listExercises: vi.fn().mockResolvedValue(exercises),
+    observeExercises: () => of(exercises),
   } as unknown as WorkoutRepository;
 
   render(
@@ -38,7 +39,7 @@ describe('Exercises page', () => {
   it('lists exercises A-Z', async () => {
     renderPage();
     // Bench Press sorts before Squat.
-    const buttons = await screen.findAllByRole('button');
+    const buttons = (await screen.findAllByRole('button')).filter((button) => button.textContent?.includes('Press') || button.textContent === 'Squat');
     expect(buttons[0]).toHaveTextContent('Bench Press');
     expect(buttons[1]).toHaveTextContent('Squat');
   });
