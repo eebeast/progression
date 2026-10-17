@@ -1,6 +1,11 @@
 import Dexie, { liveQuery, type Table } from 'dexie';
-import { recordStores } from '@/storage/reconciliation';
+import { canonicalJson, recordStores } from '@/storage/reconciliation';
+import { dependsOn } from '@/storage/sync/dependencies';
+import type { SyncStore, Operation, Mutation, RemoteRecord, PushResult, PullResult, SyncRepository, SyncStatus, SyncConflict } from '@/storage/sync/types';
 
+type QueuedOperation = Operation & { queueId?: number };
+type Version = RemoteRecord & { key: string };
+const recordKey = (store: string, id: string) => `${store}/${id}`;
 import type {
   BodyWeightEntry,
   Exercise,
@@ -32,6 +37,10 @@ import {
 /* ------------------------------- Schema ------------------------------- */
 
 class WorkoutDB extends Dexie {
+  outbox!: Table<QueuedOperation, number>;
+  versions!: Table<Version, string>;
+  syncMeta!: Table<{ id: string; value: number }, string>;
+  syncConflicts!: Table<SyncConflict, string>;
   settings!: Table<Settings, string>;
   exercises!: Table<Exercise, string>;
   templates!: Table<WorkoutTemplate, string>;
@@ -57,6 +66,12 @@ class WorkoutDB extends Dexie {
     this.version(3).stores({
       bodyWeights: 'id, date',
     });
+    this.version(4).stores({
+      outbox: '++queueId, &id',
+      versions: 'key',
+      syncMeta: 'id',
+      syncConflicts: 'id',
+    });
   }
 }
 
@@ -65,15 +80,179 @@ class WorkoutDB extends Dexie {
  * that imports `dexie`. Reactive reads use `liveQuery(...)` (a compatible
  * Observable); writes reuse the original query logic.
  */
-export class DexieRepository implements WorkoutRepository {
+export class DexieRepository implements WorkoutRepository, SyncRepository {
   private db: WorkoutDB;
 
-  constructor(databaseName = 'workout-tracker') {
+  constructor(databaseName = 'workout-tracker', private accountIdentity?: string) {
     this.db = new WorkoutDB(databaseName);
   }
 
   close(): void {
     this.db.close();
+  }
+
+  private async snapshot(): Promise<Map<string, { store: SyncStore; id: string; data: Record<string, unknown> }>> {
+    const result = new Map<string, { store: SyncStore; id: string; data: Record<string, unknown> }>();
+    for (const store of recordStores) {
+      const rows = await this.db.table(store).toArray() as Record<string, unknown>[];
+      for (const row of rows) {
+        const id = String(row.id);
+        // Template rotation has its own revisioned aggregate.
+        const data = { ...row };
+        if (store === 'templates') delete data.order;
+        result.set(recordKey(store, id), { store, id, data });
+      }
+    }
+    const templates = await this.db.templates.toArray();
+    result.set('programOrder/singleton', { store: 'programOrder', id: 'singleton', data: {
+      id: 'singleton', orderedIds: templates.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map((row) => row.id),
+    } });
+    return result;
+  }
+
+  /** All account mutations, including multi-record actions, commit with their outbox group. */
+  private async mutate<T>(action: () => Promise<T>): Promise<T> {
+    if (Dexie.currentTransaction?.db === this.db) return action();
+    return this.db.transaction('rw', this.db.tables, async () => {
+      if (!this.accountIdentity) return action();
+      const before = await this.snapshot();
+      const result = await action();
+      const after = await this.snapshot();
+      const pending = await this.db.outbox.toArray();
+      const mutations: Mutation[] = [];
+      for (const key of new Set([...before.keys(), ...after.keys()])) {
+        if (canonicalJson(before.get(key)?.data) === canonicalJson(after.get(key)?.data)) continue;
+        const row = after.get(key) ?? before.get(key)!;
+        const accepted = await this.db.versions.get(key);
+        const preceding = pending.filter((op) => op.mutations.some((m) => recordKey(m.store, m.id) === key)).length;
+        mutations.push({ store: row.store, id: row.id, data: after.get(key)?.data ?? null,
+          baseVersion: (accepted?.version ?? 0) + preceding });
+      }
+      if (mutations.length) await this.db.outbox.add({ id: newId(), mutations, createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 });
+      return result;
+    });
+  }
+
+  observeSyncStatus(): Observable<SyncStatus> {
+    return liveQuery(async () => {
+      const pending = await this.db.outbox.toArray();
+      return { pending: pending.length, conflicts: await this.db.syncConflicts.count(),
+        lastSyncedAt: (await this.db.syncMeta.get('lastSyncedAt'))?.value,
+        error: pending.find((op) => op.error)?.error };
+    });
+  }
+
+  observeConflicts(): Observable<SyncConflict[]> { return liveQuery(() => this.db.syncConflicts.toArray()); }
+
+  async nextOperation(now: number): Promise<Operation | undefined> {
+    const queue = await this.db.outbox.toArray();
+    return queue.find((op, index) => !op.blocked && op.nextAttemptAt <= now &&
+      !queue.slice(0, index).some((prior) => dependsOn(op, prior)));
+  }
+
+  private async applyRecord(record: RemoteRecord): Promise<void> {
+    if (record.store === 'programOrder') {
+      const ids = record.data?.orderedIds as string[] | undefined;
+      if (ids) for (const [order, id] of ids.entries()) await this.db.templates.update(id, { order });
+      return;
+    }
+    const table = this.db.table(record.store);
+    if (record.data === null) await table.delete(record.id);
+    else {
+      const data = { ...record.data };
+      if (record.store === 'templates') {
+        data.order = (await this.db.templates.get(record.id))?.order ?? 0;
+      }
+      await table.put(data);
+    }
+  }
+
+  async acknowledge(operation: Operation, result: PushResult): Promise<void> {
+    await this.db.transaction('rw', this.db.tables, async () => {
+      const queued = await this.db.outbox.where('id').equals(operation.id).first();
+      if (!queued) return; // Another tab already applied this receipt.
+      if (result.status !== 'accepted') {
+        await this.db.outbox.update(queued.queueId!, { blocked: true, error: result.error ?? 'Competing edit requires review' });
+        for (const row of result.records) {
+          const key = recordKey(row.store, row.id);
+          if (((await this.db.versions.get(key))?.version ?? 0) <= row.version) await this.db.versions.put({ ...row, key });
+        }
+        await this.db.syncConflicts.put({ id: operation.id, operation, records: result.records, error: result.error });
+        return;
+      }
+      await this.db.outbox.delete(queued.queueId!);
+      const pending = await this.db.outbox.toArray();
+      for (const row of result.records) {
+        const key = recordKey(row.store, row.id);
+        const current = await this.db.versions.get(key);
+        if ((current?.version ?? 0) > row.version) continue;
+        await this.db.versions.put({ ...row, key });
+        if (!pending.some((op) => op.mutations.some((m) => recordKey(m.store, m.id) === key))) await this.applyRecord(row);
+      }
+    });
+  }
+
+  async deferOperation(operation: Operation, error: string, nextAttemptAt: number): Promise<void> {
+    await this.db.outbox.where('id').equals(operation.id).modify({ attempts: operation.attempts + 1, error, nextAttemptAt });
+  }
+
+  async retrySync(): Promise<void> {
+    await this.db.outbox.filter((operation) => !operation.blocked).modify({ nextAttemptAt: 0, error: undefined });
+  }
+
+  async getCursor(): Promise<number> { return (await this.db.syncMeta.get('cursor'))?.value ?? 0; }
+
+  async applyChanges(page: PullResult): Promise<void> {
+    await this.db.transaction('rw', this.db.tables, async () => {
+      const cursor = await this.getCursor();
+      if (page.cursor < cursor) return;
+      const pending = await this.db.outbox.toArray();
+      for (const row of page.changes) {
+        const key = recordKey(row.store, row.id);
+        const current = await this.db.versions.get(key);
+        if ((current?.version ?? 0) >= row.version) continue;
+        await this.db.versions.put({ ...row, key });
+        if (!pending.some((op) => op.mutations.some((m) => recordKey(m.store, m.id) === key))) await this.applyRecord(row);
+      }
+      await this.db.syncMeta.put({ id: 'cursor', value: page.cursor });
+    });
+  }
+
+  async markSynced(): Promise<void> { await this.db.syncMeta.put({ id: 'lastSyncedAt', value: Date.now() }); }
+
+  async resolveConflict(id: string, choice: 'local' | 'remote'): Promise<void> {
+    await this.db.transaction('rw', this.db.tables, async () => {
+      const conflict = await this.db.syncConflicts.get(id);
+      if (!conflict) return;
+      const queue = await this.db.outbox.toArray();
+      const affected = new Set(conflict.operation.mutations.map((m) => recordKey(m.store, m.id)));
+      const linked = new Set<string>([id]);
+      // Include dependent atomic groups; one group must never be half discarded.
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const op of queue) if (!linked.has(op.id) && op.mutations.some((m) => affected.has(recordKey(m.store, m.id)))) {
+          linked.add(op.id); op.mutations.forEach((m) => affected.add(recordKey(m.store, m.id))); changed = true;
+        }
+      }
+      const snapshot = await this.snapshot();
+      const mutations: Mutation[] = [];
+      for (const key of affected) {
+        const accepted = await this.db.versions.get(key);
+        const row = snapshot.get(key);
+        const original = queue.flatMap((op) => op.mutations).find((m) => recordKey(m.store, m.id) === key)!;
+        if (choice === 'remote') {
+          await this.applyRecord(accepted ?? { store: original.store, id: original.id, version: 0, data: null });
+        } else if (canonicalJson(row?.data ?? null) !== canonicalJson(accepted?.data ?? null)) {
+          mutations.push({ store: original.store, id: original.id, data: row?.data ?? null, baseVersion: accepted?.version ?? 0 });
+        }
+      }
+      for (const operationId of linked) {
+        await this.db.outbox.where('id').equals(operationId).delete();
+        await this.db.syncConflicts.delete(operationId);
+      }
+      if (mutations.length) await this.db.outbox.add({ id: newId(), mutations, createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 });
+    });
   }
 
   /* ----------------------------- settings ----------------------------- */
@@ -83,71 +262,82 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async updateSettings(patch: Partial<Settings>): Promise<void> {
-    await this.db.settings.update('singleton', patch);
+    return this.mutate(async () => {
+      await this.db.settings.update('singleton', patch);
+    });
   }
 
   /** Idempotent: seeds empty tables and repairs legacy settings rows. */
   async ensureSeeded(): Promise<void> {
-    await this.db.transaction('rw', this.db.settings, this.db.exercises, this.db.templates, async () => {
-      if ((await this.db.settings.count()) === 0) {
-        await this.db.settings.put(DEFAULT_SETTINGS);
-      } else {
-        // Repair rows saved before a field existed (or that stored NaN/undefined).
-        const s = await this.db.settings.get('singleton');
-        if (s) {
-          const fix: Partial<Settings> = {};
-          if (typeof s.weeklyGoal !== 'number' || !Number.isFinite(s.weeklyGoal))
-            fix.weeklyGoal = DEFAULT_SETTINGS.weeklyGoal;
-          if (typeof s.weightIncrement !== 'number' || !Number.isFinite(s.weightIncrement))
-            fix.weightIncrement = DEFAULT_SETTINGS.weightIncrement;
-          if (!s.accent) fix.accent = DEFAULT_SETTINGS.accent;
-          if (!s.unit) fix.unit = DEFAULT_SETTINGS.unit;
-          if (!s.theme) fix.theme = DEFAULT_SETTINGS.theme;
-          if (Object.keys(fix).length) await this.db.settings.update('singleton', fix);
-        }
-      }
-
-      if ((await this.db.templates.count()) === 0) {
-        const existingExercises = await this.db.exercises.toArray();
-        const exerciseByName = new Map<string, Exercise>(
-          existingExercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]),
-        );
-        const ensureExercise = (name: string): Exercise => {
-          const key = name.toLowerCase();
-          let ex = exerciseByName.get(key);
-          if (!ex) {
-            ex = { id: newId(), name, createdAt: Date.now() };
-            exerciseByName.set(key, ex);
+    if (this.accountIdentity) {
+      // Cloud accounts bootstrap from remote history; never generate per-device plans.
+      await this.db.transaction('rw', this.db.settings, async () => {
+        if (!(await this.db.settings.get('singleton'))) await this.db.settings.put(DEFAULT_SETTINGS);
+      });
+      return;
+    }
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.settings, this.db.exercises, this.db.templates, async () => {
+        if ((await this.db.settings.count()) === 0) {
+          await this.db.settings.put(DEFAULT_SETTINGS);
+        } else {
+          // Repair rows saved before a field existed (or that stored NaN/undefined).
+          const s = await this.db.settings.get('singleton');
+          if (s) {
+            const fix: Partial<Settings> = {};
+            if (typeof s.weeklyGoal !== 'number' || !Number.isFinite(s.weeklyGoal))
+              fix.weeklyGoal = DEFAULT_SETTINGS.weeklyGoal;
+            if (typeof s.weightIncrement !== 'number' || !Number.isFinite(s.weightIncrement))
+              fix.weightIncrement = DEFAULT_SETTINGS.weightIncrement;
+            if (!s.accent) fix.accent = DEFAULT_SETTINGS.accent;
+            if (!s.unit) fix.unit = DEFAULT_SETTINGS.unit;
+            if (!s.theme) fix.theme = DEFAULT_SETTINGS.theme;
+            if (Object.keys(fix).length) await this.db.settings.update('singleton', fix);
           }
-          return ex;
-        };
+        }
 
-        const templates: WorkoutTemplate[] = PROGRAM.map((day, dayIndex) => {
-          const exercises: TemplateExercise[] = day.exercises.map((e, i) => {
-            const ex = ensureExercise(e.name);
+        if (!this.accountIdentity && (await this.db.templates.count()) === 0) {
+          const existingExercises = await this.db.exercises.toArray();
+          const exerciseByName = new Map<string, Exercise>(
+            existingExercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]),
+          );
+          const ensureExercise = (name: string): Exercise => {
+            const key = name.toLowerCase();
+            let ex = exerciseByName.get(key);
+            if (!ex) {
+              ex = { id: newId(), name, createdAt: Date.now() };
+              exerciseByName.set(key, ex);
+            }
+            return ex;
+          };
+
+          const templates: WorkoutTemplate[] = PROGRAM.map((day, dayIndex) => {
+            const exercises: TemplateExercise[] = day.exercises.map((e, i) => {
+              const ex = ensureExercise(e.name);
+              return {
+                exerciseId: ex.id,
+                name: ex.name,
+                targetSets: e.targetSets,
+                targetRepRange: e.targetRepRange,
+                order: i,
+              };
+            });
+            const now = Date.now();
             return {
-              exerciseId: ex.id,
-              name: ex.name,
-              targetSets: e.targetSets,
-              targetRepRange: e.targetRepRange,
-              order: i,
+              id: newId(),
+              name: day.name,
+              order: dayIndex,
+              estimatedMinutes: day.estimatedMinutes,
+              exercises,
+              createdAt: now,
+              updatedAt: now,
             };
           });
-          const now = Date.now();
-          return {
-            id: newId(),
-            name: day.name,
-            order: dayIndex,
-            estimatedMinutes: day.estimatedMinutes,
-            exercises,
-            createdAt: now,
-            updatedAt: now,
-          };
-        });
 
-        await this.db.exercises.bulkPut([...exerciseByName.values()]);
-        await this.db.templates.bulkPut(templates);
-      }
+          await this.db.exercises.bulkPut([...exerciseByName.values()]);
+          await this.db.templates.bulkPut(templates);
+        }
+    });
     });
   }
 
@@ -158,7 +348,9 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async bulkCreateExercises(list: Exercise[]): Promise<void> {
-    if (list.length) await this.db.exercises.bulkPut(list);
+    return this.mutate(async () => {
+      if (list.length) await this.db.exercises.bulkPut(list);
+    });
   }
 
   /* ----------------------------- templates ----------------------------- */
@@ -179,40 +371,48 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async createTemplate(input: TemplateInput): Promise<string> {
-    const count = await this.db.templates.count();
-    const now = Date.now();
-    const template: WorkoutTemplate = {
-      id: newId(),
-      name: input.name,
-      order: count,
-      estimatedMinutes: input.estimatedMinutes,
-      exercises: input.exercises,
-      createdAt: now,
-      updatedAt: now,
-    };
-    await this.db.templates.put(template);
-    return template.id;
+    return this.mutate(async () => {
+      const count = await this.db.templates.count();
+      const now = Date.now();
+      const template: WorkoutTemplate = {
+        id: newId(),
+        name: input.name,
+        order: count,
+        estimatedMinutes: input.estimatedMinutes,
+        exercises: input.exercises,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.db.templates.put(template);
+      return template.id;
+    });
   }
 
   async updateTemplate(id: string, patch: TemplateInput): Promise<void> {
-    const existing = await this.db.templates.get(id);
-    if (!existing) return;
-    await this.db.templates.put({
-      ...existing,
-      name: patch.name,
-      estimatedMinutes: patch.estimatedMinutes,
-      exercises: patch.exercises,
-      updatedAt: Date.now(),
+    return this.mutate(async () => {
+      const existing = await this.db.templates.get(id);
+      if (!existing) return;
+      await this.db.templates.put({
+        ...existing,
+        name: patch.name,
+        estimatedMinutes: patch.estimatedMinutes,
+        exercises: patch.exercises,
+        updatedAt: Date.now(),
+    });
     });
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    await this.db.templates.delete(id);
+    return this.mutate(async () => {
+      await this.db.templates.delete(id);
+    });
   }
 
   async reorderTemplates(orderedIds: string[]): Promise<void> {
-    await this.db.transaction('rw', this.db.templates, async () => {
-      await Promise.all(orderedIds.map((id, i) => this.db.templates.update(id, { order: i })));
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.templates, async () => {
+        await Promise.all(orderedIds.map((id, i) => this.db.templates.update(id, { order: i })));
+    });
     });
   }
 
@@ -254,50 +454,60 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async startSession(template: WorkoutTemplate): Promise<string> {
-    const now = Date.now();
-    const session: WorkoutSession = {
-      id: newId(),
-      templateId: template.id,
-      templateName: template.name,
-      exercises: structuredClone(template.exercises),
-      date: now,
-      startTime: now,
-      endTime: null,
-      notes: '',
-      feeling: null,
-      status: 'active',
-    };
-    await this.db.sessions.put(session);
-    return session.id;
+    return this.mutate(async () => {
+      const now = Date.now();
+      const session: WorkoutSession = {
+        id: newId(),
+        templateId: template.id,
+        templateName: template.name,
+        exercises: structuredClone(template.exercises),
+        date: now,
+        startTime: now,
+        endTime: null,
+        notes: '',
+        feeling: null,
+        status: 'active',
+      };
+      await this.db.sessions.put(session);
+      return session.id;
+    });
   }
 
   /** Freeze the clock the moment we land on the summary. */
   async endSessionClock(id: string): Promise<void> {
-    const session = await this.db.sessions.get(id);
-    if (session && session.endTime == null) {
-      await this.db.sessions.update(id, { endTime: Date.now() });
-    }
+    return this.mutate(async () => {
+      const session = await this.db.sessions.get(id);
+      if (session && session.endTime == null) {
+        await this.db.sessions.update(id, { endTime: Date.now() });
+      }
+    });
   }
 
   async finishSession(id: string, meta: SessionMeta): Promise<void> {
-    const session = await this.db.sessions.get(id);
-    await this.db.sessions.update(id, {
-      status: 'completed',
-      endTime: session?.endTime ?? Date.now(),
-      notes: meta.notes,
-      feeling: meta.feeling,
+    return this.mutate(async () => {
+      const session = await this.db.sessions.get(id);
+      await this.db.sessions.update(id, {
+        status: 'completed',
+        endTime: session?.endTime ?? Date.now(),
+        notes: meta.notes,
+        feeling: meta.feeling,
+    });
     });
   }
 
   async discardSession(id: string): Promise<void> {
-    await this.db.transaction('rw', this.db.sessions, this.db.logs, async () => {
-      await this.db.logs.where('sessionId').equals(id).delete();
-      await this.db.sessions.delete(id);
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.sessions, this.db.logs, async () => {
+        await this.db.logs.where('sessionId').equals(id).delete();
+        await this.db.sessions.delete(id);
+    });
     });
   }
 
   async deleteSession(id: string): Promise<void> {
-    await this.discardSession(id);
+    return this.mutate(async () => {
+      await this.discardSession(id);
+    });
   }
 
   /* ------------------------------- logs ------------------------------- */
@@ -358,21 +568,23 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async addSet(input: NewSetInput): Promise<void> {
-    await this.db.transaction('rw', this.db.logs, async () => {
-      const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId);
-      const log: ExerciseLog = {
-        id: newId(),
-        sessionId: input.sessionId,
-        exerciseId: input.exerciseId,
-        exerciseName: input.exerciseName,
-        setNumber: Math.max(0, ...existing.map((set) => set.setNumber)) + 1,
-        weight: input.weight,
-        reps: input.reps,
-        metric: input.metric ?? 'reps',
-        isWarmup: input.isWarmup ?? false,
-        timestamp: Date.now(),
-      };
-      await this.db.logs.put(log);
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.logs, async () => {
+        const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId);
+        const log: ExerciseLog = {
+          id: newId(),
+          sessionId: input.sessionId,
+          exerciseId: input.exerciseId,
+          exerciseName: input.exerciseName,
+          setNumber: Math.max(0, ...existing.map((set) => set.setNumber)) + 1,
+          weight: input.weight,
+          reps: input.reps,
+          metric: input.metric ?? 'reps',
+          isWarmup: input.isWarmup ?? false,
+          timestamp: Date.now(),
+        };
+        await this.db.logs.put(log);
+    });
     });
   }
 
@@ -380,30 +592,36 @@ export class DexieRepository implements WorkoutRepository {
     id: string,
     data: Partial<Pick<ExerciseLog, 'weight' | 'reps' | 'isWarmup'>>,
   ): Promise<void> {
-    await this.db.logs.update(id, data);
+    return this.mutate(async () => {
+      await this.db.logs.update(id, data);
+    });
   }
 
   /** Delete a set and renumber the remaining sets for that session/exercise. */
   async deleteSet(id: string): Promise<void> {
-    await this.db.transaction('rw', this.db.logs, async () => {
-      const log = await this.db.logs.get(id);
-      if (!log) return;
-      await this.db.logs.delete(id);
-      const remaining = await this.logsForSessionExercise(log.sessionId, log.exerciseId);
-      await Promise.all(
-        remaining.map((l, i) =>
-          l.setNumber === i + 1 ? Promise.resolve() : this.db.logs.update(l.id, { setNumber: i + 1 }),
-        ),
-      );
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.logs, async () => {
+        const log = await this.db.logs.get(id);
+        if (!log) return;
+        await this.db.logs.delete(id);
+        const remaining = await this.logsForSessionExercise(log.sessionId, log.exerciseId);
+        await Promise.all(
+          remaining.map((l, i) =>
+            l.setNumber === i + 1 ? Promise.resolve() : this.db.logs.update(l.id, { setNumber: i + 1 }),
+          ),
+        );
+    });
     });
   }
 
   /** Persist a new set order by renumbering each set to its position (1-based). */
   async reorderSets(orderedIds: string[]): Promise<void> {
-    await this.db.transaction('rw', this.db.logs, async () => {
-      await Promise.all(
-        orderedIds.map((id, i) => this.db.logs.update(id, { setNumber: i + 1 })),
-      );
+    return this.mutate(async () => {
+      await this.db.transaction('rw', this.db.logs, async () => {
+        await Promise.all(
+          orderedIds.map((id, i) => this.db.logs.update(id, { setNumber: i + 1 })),
+        );
+    });
     });
   }
 
@@ -417,27 +635,33 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async createRun(input: NewRunInput): Promise<void> {
-    const run: Run = {
-      id: newId(),
-      date: input.date,
-      distanceKm: input.distanceKm,
-      durationSeconds: input.durationSeconds,
-      notes: input.notes,
-      feeling: input.feeling ?? null,
-      createdAt: Date.now(),
-    };
-    await this.db.runs.put(run);
+    return this.mutate(async () => {
+      const run: Run = {
+        id: newId(),
+        date: input.date,
+        distanceKm: input.distanceKm,
+        durationSeconds: input.durationSeconds,
+        notes: input.notes,
+        feeling: input.feeling ?? null,
+        createdAt: Date.now(),
+      };
+      await this.db.runs.put(run);
+    });
   }
 
   async updateRun(
     id: string,
     patch: Partial<Pick<Run, 'date' | 'distanceKm' | 'durationSeconds' | 'notes' | 'feeling'>>,
   ): Promise<void> {
-    await this.db.runs.update(id, patch);
+    return this.mutate(async () => {
+      await this.db.runs.update(id, patch);
+    });
   }
 
   async deleteRun(id: string): Promise<void> {
-    await this.db.runs.delete(id);
+    return this.mutate(async () => {
+      await this.db.runs.delete(id);
+    });
   }
 
   /* --------------------------- body weight --------------------------- */
@@ -450,24 +674,30 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async addBodyWeight(input: NewBodyWeightInput): Promise<void> {
-    const entry: BodyWeightEntry = {
-      id: newId(),
-      date: input.date,
-      weight: input.weight,
-      createdAt: Date.now(),
-    };
-    await this.db.bodyWeights.put(entry);
+    return this.mutate(async () => {
+      const entry: BodyWeightEntry = {
+        id: newId(),
+        date: input.date,
+        weight: input.weight,
+        createdAt: Date.now(),
+      };
+      await this.db.bodyWeights.put(entry);
+    });
   }
 
   async updateBodyWeight(
     id: string,
     patch: Partial<Pick<BodyWeightEntry, 'date' | 'weight'>>,
   ): Promise<void> {
-    await this.db.bodyWeights.update(id, patch);
+    return this.mutate(async () => {
+      await this.db.bodyWeights.update(id, patch);
+    });
   }
 
   async deleteBodyWeight(id: string): Promise<void> {
-    await this.db.bodyWeights.delete(id);
+    return this.mutate(async () => {
+      await this.db.bodyWeights.delete(id);
+    });
   }
 
   /* ------------------------------ backup ------------------------------ */
@@ -479,7 +709,13 @@ export class DexieRepository implements WorkoutRepository {
         // Store types share a record identity; the public shape remains strongly typed.
         Object.assign(data, { [store]: await this.db.table(store).toArray() });
       }
-      return { app: 'workout-tracker', version: 1, exportedAt: Date.now(), data };
+      return { app: 'workout-tracker', version: 2, exportedAt: Date.now(), data, recovery: {
+        accountIdentity: this.accountIdentity,
+        operations: await this.db.outbox.toArray(),
+        versions: await this.db.versions.toArray(),
+        metadata: await this.db.syncMeta.toArray(),
+        conflicts: await this.db.syncConflicts.toArray(),
+      } };
     });
   }
 
@@ -511,19 +747,28 @@ export class DexieRepository implements WorkoutRepository {
     }
     const { backup } = parseLegacyBackup(parsed);
     const { settings, exercises, templates, sessions, logs, runs, bodyWeights } = backup.data;
+    // Account imports merge entity data through new operations, never transplant another outbox.
+    if (backup.recovery?.conflicts.length) {
+      throw new Error('This recovery backup includes unresolved conflicts. Resolve them on the source account before a normal import.');
+    }
 
-    await this.db.transaction(
-      'rw',
-      [
-        this.db.settings,
-        this.db.exercises,
-        this.db.templates,
-        this.db.sessions,
-        this.db.logs,
-        this.db.runs,
-        this.db.bodyWeights,
-      ],
+    await this.mutate(() => this.db.transaction(
+      'rw', this.db.tables,
       async () => {
+        if (this.accountIdentity) {
+          for (const store of recordStores) {
+            for (const row of backup.data[store] ?? []) {
+              const existing = await this.db.table(store).get(row.id);
+              const unclaimedSettings = store === 'settings' && !existing?.userName &&
+                !(await this.db.versions.get('settings/singleton'));
+              if (existing && !unclaimedSettings && canonicalJson(existing) !== canonicalJson(row)) {
+                throw new Error(`Import collision in ${store}: ${row.id}. Existing account data has not been replaced.`);
+              }
+              await this.db.table(store).put(row);
+            }
+          }
+          return;
+        }
         await Promise.all([
           this.db.settings.clear(),
           this.db.exercises.clear(),
@@ -541,7 +786,7 @@ export class DexieRepository implements WorkoutRepository {
         if (runs?.length) await this.db.runs.bulkPut(runs);
         if (bodyWeights?.length) await this.db.bodyWeights.bulkPut(bodyWeights);
       },
-    );
+    ));
   }
 }
 

@@ -7,10 +7,12 @@ import type {
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
+import type { RecoveryState } from '@/storage/sync/types';
 
 export interface BackupShape {
   app: 'workout-tracker';
-  version: 1;
+  version: 1 | 2;
+  recovery?: RecoveryState;
   exportedAt: number;
   data: {
     settings: Settings[];
@@ -74,8 +76,13 @@ function validateTimestamps(items: Record<string, unknown>[], key: string, warni
 }
 
 export function parseLegacyBackup(input: unknown): { backup: BackupShape; report: BackupImportReport } {
-  if (!isRecord(input) || input.app !== 'workout-tracker' || input.version !== 1 || !isRecord(input.data)) {
+  if (!isRecord(input) || input.app !== 'workout-tracker' || ![1, 2].includes(input.version as number) || !isRecord(input.data)) {
     throw new Error('This file is not a supported workout backup (expected workout-tracker version 1).');
+  }
+  if (input.version === 2) {
+    if (!isRecord(input.recovery) || !['operations', 'versions', 'metadata', 'conflicts'].every((key) => Array.isArray((input.recovery as Record<string, unknown>)[key]))) {
+      throw new Error('This file is not a supported workout backup (missing version 2 recovery state).');
+    }
   }
   if (typeof input.exportedAt !== 'number' || !Number.isFinite(input.exportedAt)) {
     throw new Error('Invalid workout backup: exportedAt must be a finite timestamp.');
@@ -166,7 +173,8 @@ export function parseLegacyBackup(input: unknown): { backup: BackupShape; report
   return {
     backup: {
       app: 'workout-tracker',
-      version: 1,
+      version: input.version as 1 | 2,
+      ...(input.version === 2 ? { recovery: input.recovery as unknown as RecoveryState } : {}),
       exportedAt: input.exportedAt,
       // Keep legacy record payloads verbatim after validating their containers and IDs.
       data: data as unknown as BackupShape['data'],

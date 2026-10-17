@@ -40,6 +40,13 @@ Types live in `src/types/index.ts`. Stores are versioned additively in
 `DexieRepository`:
 
 - **v1** `settings, exercises, templates, sessions, logs` · **v2** `runs` · **v3** `bodyWeights`
+  · **v4** `outbox, versions, syncMeta, syncConflicts`
+
+Account repositories use a project/account-specific database. Account mutations and
+their immutable outbox groups commit in one transaction; remote changes bypass that
+queue. Version 2 recovery exports include sync state; normal imports never replay a
+foreign outbox. Account imports merge by ID and reject collisions; local-only imports
+retain the confirmed replacement behavior. Keep this distinction visible in Settings.
 
 Rules:
 - **New store** → new `this.version(N).stores({...})` bump (follow the `runs`/`bodyWeights`
