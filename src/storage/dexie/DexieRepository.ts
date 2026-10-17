@@ -600,12 +600,13 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   private async logsForSessionExercise(
     sessionId: string,
     exerciseId: string,
+    assignmentId?: string,
   ): Promise<ExerciseLog[]> {
     const logs = await this.db.logs
       .where('[sessionId+exerciseId]')
       .equals([sessionId, exerciseId])
       .toArray();
-    return logs.sort((a, b) => a.setNumber - b.setNumber);
+    return logs.filter((log) => log.assignmentId === assignmentId).sort((a, b) => a.setNumber - b.setNumber);
   }
 
   /**
@@ -641,7 +642,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   async addSet(input: NewSetInput): Promise<void> {
     return this.mutate(async () => {
       await this.db.transaction('rw', this.db.logs, async () => {
-        const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId);
+        const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId, input.assignmentId);
         const log: ExerciseLog = {
           id: newId(),
           sessionId: input.sessionId,
@@ -676,7 +677,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         const log = await this.db.logs.get(id);
         if (!log) return;
         await this.db.logs.delete(id);
-        const remaining = await this.logsForSessionExercise(log.sessionId, log.exerciseId);
+        const remaining = await this.logsForSessionExercise(log.sessionId, log.exerciseId, log.assignmentId);
         await Promise.all(
           remaining.map((l, i) =>
             l.setNumber === i + 1 ? Promise.resolve() : this.db.logs.update(l.id, { setNumber: i + 1 }),

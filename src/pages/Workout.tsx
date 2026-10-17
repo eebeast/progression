@@ -1,4 +1,7 @@
 import * as React from 'react';
+import { useCloud } from '@/auth/CloudProvider';
+import { RestTimer } from '@/components/RestTimer';
+import { SessionExercisePicker } from '@/components/SessionExercisePicker';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check, SkipForward, Flag } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
@@ -19,6 +22,10 @@ export default function Workout() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const repo = useRepo();
+  const cloud = useCloud();
+  const savingRef = React.useRef(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string>();
   const { settings } = useSettings();
 
   const session = useObservable(() => repo.observeSession(sessionId), [repo, sessionId]);
@@ -66,7 +73,7 @@ export default function Workout() {
     () =>
       current
         ? allLogs
-            .filter((l) => l.exerciseId === current.exerciseId)
+            .filter((l) => l.exerciseId === current.exerciseId && (!current.assignmentId || !l.assignmentId || l.assignmentId === current.assignmentId))
             .sort((a, b) => a.setNumber - b.setNumber)
         : [],
     [allLogs, current],
@@ -171,18 +178,25 @@ export default function Workout() {
   };
 
   const saveSet = async () => {
-    if (!current || reps <= 0) return;
-    pendingFlash.current = true;
-    await repo.addSet({
-      sessionId,
-      exerciseId: current.exerciseId,
-      exerciseName: current.name,
-      weight,
-      reps,
-      metric,
-      isWarmup: warmup,
-    });
-    // Keep both weight and reps pre-filled, ready to repeat the same set.
+    if (!current || reps <= 0 || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setSaveError(undefined);
+    try {
+      pendingFlash.current = true;
+      await repo.addSet({ sessionId, exerciseId: current.exerciseId, exerciseName: current.name,
+        assignmentId: current.assignmentId, weight, reps, metric, isWarmup: warmup });
+    } catch (error) {
+      pendingFlash.current = false;
+      setSaveError(error instanceof Error ? error.message : 'Set could not be saved.');
+    } finally { savingRef.current = false; setSaving(false); }
+  };
+
+  const undoLastSet = async () => {
+    const last = [...allLogs].sort((a, b) => b.timestamp - a.timestamp).at(0);
+    if (!last || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setSaveError(undefined);
+    try { await repo.deleteSet(last.id); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : 'Undo failed.'); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   const goTo = (i: number) => {
@@ -351,6 +365,9 @@ export default function Workout() {
             </div>
           )}
 
+          <RestTimer key={current.assignmentId ?? current.exerciseId} endsAt={session.restEndsAt} initialSeconds={current.restSeconds} onChange={(value) => repo.setRestTimer(sessionId, value)} />
+          {session.exercises && <SessionExercisePicker sessionId={sessionId} onAdded={() => setIndex(exercises.length)} />}
+          {allLogs.length > 0 && <Button variant="ghost" disabled={saving} onClick={undoLastSet}>Undo last saved set</Button>}
           <div className="flex-1" />
 
           {/* Sticky footer actions */}
@@ -358,6 +375,8 @@ export default function Workout() {
             className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-border bg-card/70 px-4 pt-3 backdrop-blur-[20px] backdrop-saturate-[1.8]"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
           >
+            {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+            <p role="status" className="text-center text-xs text-muted-foreground">{saving ? 'Saving locally…' : cloud?.account ? cloud.status.conflicts ? 'Saved locally · sync conflicts need review' : cloud.status.pending ? `Saved locally · ${cloud.status.pending} changes pending` : cloud.status.lastSyncedAt ? 'Saved and synced' : 'Saved on this device' : 'Saved on this device'}</p>
             {!isStarted ? (
               <>
                 <Button size="lg" onClick={startExercise}>
@@ -374,7 +393,7 @@ export default function Workout() {
               </>
             ) : (
               <>
-                <Button size="lg" disabled={reps <= 0} onClick={saveSet}>
+                <Button size="lg" disabled={reps <= 0 || saving} onClick={saveSet}>
                   <Check className="h-5 w-5" />
                   Save set
                 </Button>

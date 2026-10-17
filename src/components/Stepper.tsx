@@ -82,6 +82,7 @@ export function Stepper({
         </button>
 
         <input
+          aria-label={label || unit || 'Value'}
           inputMode={decimal ? 'decimal' : 'numeric'}
           pattern={decimal ? '[0-9]*[.,]?[0-9]*' : '[0-9]*'}
           value={text}

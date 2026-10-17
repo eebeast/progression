@@ -1,5 +1,5 @@
 import type { ExerciseLog, Feeling, Unit } from '@/types';
-import { formatDate, formatDuration } from '@/utils/format';
+import { formatDate, formatDuration, formatSetValue } from '@/utils/format';
 
 const FEELING_LABEL: Record<Feeling, string> = {
   good: 'Good',
@@ -63,7 +63,7 @@ export function buildWorkoutRecap({
 
   for (const id of order) {
     const group = byExercise.get(id)!;
-    const sets = group.sets.map((s) => `${s.weight}${unit}×${s.reps}`).join(', ');
+    const sets = group.sets.map((s) => `${s.weight > 0 ? `${s.weight}${unit}×` : ''}${s.metric === 'time' ? formatSetValue(s.reps, s.metric) : s.reps}`).join(', ');
     lines.push(`${group.name}: ${sets}`);
   }
 

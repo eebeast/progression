@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RepositoryProvider } from '@/storage/RepositoryProvider';
@@ -13,15 +14,17 @@ const session: WorkoutSession = {
   date: 1, startTime: 1, endTime: null, notes: '', feeling: null, status: 'active',
 };
 
-function showWorkout(value: WorkoutSession, template?: WorkoutTemplate, stream?: Observable<WorkoutTemplate | undefined>) {
+function showWorkout(value: WorkoutSession, template?: WorkoutTemplate, stream?: Observable<WorkoutTemplate | undefined>, overrides: Partial<WorkoutRepository> = {}) {
   const observeTemplate = vi.fn(() => stream ?? of(template));
   const repo = {
     observeSettings: () => of(DEFAULT_SETTINGS),
     observeSession: () => of(value),
     observeSessionLogs: () => of([]),
+    observeExercises: () => of([]),
     observeExerciseLogs: () => of([]),
     getLastPerformedSets: () => Promise.resolve(null),
     observeTemplate,
+    ...overrides,
   } as unknown as WorkoutRepository;
   render(<MemoryRouter initialEntries={['/workout/s1']}>
     <RepositoryProvider repository={repo}>
@@ -63,4 +66,18 @@ describe('Workout prescriptions', () => {
     expect(await screen.findByText('Original squat')).toBeInTheDocument();
     expect(observeTemplate).toHaveBeenCalledWith('t1');
   });
+});
+
+it('prevents double saves and keeps entry values available after a failed local save', async () => {
+  const user = userEvent.setup(); let fail: ((error: Error) => void) | undefined;
+  const addSet = vi.fn(() => new Promise<void>((_resolve, reject) => { fail = reject; }));
+  showWorkout(session, undefined, undefined, { addSet });
+  await user.click(await screen.findByRole('button', { name: 'Start exercise' }));
+  await user.click(screen.getByRole('button', { name: 'Increase Reps' }));
+  await user.dblClick(screen.getByRole('button', { name: 'Save set' }));
+  expect(addSet).toHaveBeenCalledTimes(1);
+  await act(async () => { fail!(new Error('Storage full')); });
+  expect(screen.getByRole('alert')).toHaveTextContent('Storage full');
+  expect(screen.getByRole('button', { name: 'Save set' })).toBeEnabled();
+  expect(screen.getByRole('textbox', { name: 'Reps' })).toHaveValue('1');
 });
