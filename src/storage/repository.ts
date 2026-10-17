@@ -162,5 +162,5 @@ export interface WorkoutRepository {
   // backup
   exportData(): Promise<void>;
   inspectImport(file: File): Promise<BackupImportReport>;
-  importData(file: File): Promise<void>;
+  importData(file: File, options?: { preferences: 'keep' | 'source' }): Promise<void>;
 }

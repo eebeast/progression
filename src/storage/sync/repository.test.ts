@@ -104,3 +104,54 @@ describe('account import and dependencies', () => {
     expect(await a.nextOperation(Date.now())).toBeUndefined();
   });
 });
+
+describe('migration and dependent conflict recovery', () => {
+  it('queues a large import in resumable bounded parent-first batches', async () => {
+    const a = repo();
+    const backup = { app: 'workout-tracker', version: 1, exportedAt: 1, data: {
+      settings: [], exercises: [{ id: 'e', name: 'Squat', createdAt: 1 }], templates: [],
+      sessions: [{ id: 's', templateId: '', templateName: 'Legacy', date: 1, startTime: 1, endTime: 2, status: 'completed', notes: '', feeling: null }],
+      logs: Array.from({ length: 1100 }, (_, i) => ({ id: `set-${i}`, sessionId: 's', exerciseId: 'e', exerciseName: 'Squat', setNumber: i + 1, weight: 20, reps: 5, timestamp: i })),
+    } };
+    await a.importData({ text: async () => JSON.stringify(backup) } as File);
+    const operations = (await a.createBackup()).recovery!.operations;
+    expect(operations.length).toBeGreaterThan(1);
+    expect(operations.every((op) => op.mutations.length <= 400)).toBe(true);
+    expect(operations[0].mutations.slice(0, 2).map((m) => m.store)).toEqual(['exercises', 'sessions']);
+    expect(operations.flatMap((op) => op.mutations).filter((m) => m.store === 'logs')).toHaveLength(1100);
+  });
+  it('retains a remotely deleted parent while an offline child needs review and restores both in dependency order', async () => {
+    const a = repo();
+    await a.applyChanges({ cursor: 2, hasMore: false, changes: [
+      { sequence: 1, store: 'exercises', id: 'e', version: 1, data: { id: 'e', name: 'Squat', createdAt: 1 } },
+      { sequence: 2, store: 'sessions', id: 's', version: 1, data: { id: 's', templateId: '', templateName: 'Plan', date: 1, startTime: 1, endTime: null, status: 'active', notes: '', feeling: null } },
+    ] });
+    await a.setRestTimer('s', 100);
+    const parent = (await a.nextOperation(Date.now()))!;
+    await a.addSet({ sessionId: 's', exerciseId: 'e', exerciseName: 'Squat', reps: 5, weight: 20 });
+    const tombstone = { store: 'sessions' as const, id: 's', version: 2, data: null };
+    await a.acknowledge(parent, { status: 'conflict', records: [tombstone] });
+    await a.applyChanges({ cursor: 3, hasMore: false, changes: [{ ...tombstone, sequence: 3 }] });
+    expect(await first(a.observeSession('s'))).toBeDefined();
+    expect(await first(a.observeSessionLogs('s'))).toHaveLength(1);
+    await a.resolveConflict(parent.id, 'local');
+    const restored = (await a.nextOperation(Date.now()))!;
+    expect(restored.mutations.map((m) => m.store)).toEqual(['sessions', 'logs']);
+    expect(restored.mutations[0].baseVersion).toBe(2);
+    expect((await a.createBackup()).recovery!.operations).toHaveLength(1);
+  });
+  it('restores a conflicted backup into local-only review without replaying the foreign outbox', async () => {
+    const source = repo(); await source.createRun({ date: 1, distanceKm: 5, durationSeconds: 1000 });
+    const op = (await source.nextOperation(Date.now()))!;
+    await source.acknowledge(op, { status: 'conflict', records: [{ ...accepted(op)[0], version: 3, data: { ...op.mutations[0].data, distanceKm: 9 } }] });
+    const backup = await source.createBackup();
+    const local = new DexieRepository(crypto.randomUUID()); repositories.push(local);
+    await local.importData({ text: async () => JSON.stringify(backup) } as File);
+    expect(await local.nextOperation(Date.now())).toBeUndefined();
+    expect((await local.createBackup()).data.runs![0].distanceKm).toBe(5);
+    const conflict = (await first(local.observeConflicts()))[0];
+    await local.resolveConflict(conflict.id, 'remote');
+    expect((await local.createBackup()).data.runs![0].distanceKm).toBe(9);
+    expect(await local.nextOperation(Date.now())).toBeUndefined();
+  });
+});

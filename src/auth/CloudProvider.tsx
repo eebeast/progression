@@ -114,7 +114,8 @@ function AccountScope({ account, error, setError, children }: {
       // Original local database remains untouched. Import collisions abort the whole transaction.
       await dexieRepository.exportData();
       const backup = await dexieRepository.createBackup();
-      await repo.importData(new File([JSON.stringify(backup)], 'local-history.json', { type: 'application/json' }));
+      await repo.importData(new File([JSON.stringify(backup)], 'local-history.json', { type: 'application/json' }),
+        { preferences: window.confirm('Also replace this account’s preferences with the original local name, units and appearance? Cancel keeps current account preferences and still copies workout history.') ? 'source' : 'keep' });
       await coordinator?.sync();
     },
     async resolve(id, choice) { await repo.resolveConflict(id, choice); await coordinator?.sync(); },

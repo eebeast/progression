@@ -59,6 +59,7 @@ export class HttpRepository implements WorkoutRepository {
   mergeExercises(_source: string, _target: string): Promise<void> { return TODO(); }
 
   // templates
+  
   observeTemplates(): Observable<WorkoutTemplate[]> {
     return TODO();
   }
@@ -119,6 +120,7 @@ export class HttpRepository implements WorkoutRepository {
   observeSessionLogs(_sessionId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
+  
   observeExerciseLogs(_exerciseId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
@@ -179,7 +181,7 @@ export class HttpRepository implements WorkoutRepository {
   inspectImport(_file: File): Promise<BackupImportReport> {
     return TODO();
   }
-  importData(_file: File): Promise<void> {
+  importData(_file: File, _options?: { preferences: 'keep' | 'source' }): Promise<void> {
     return TODO();
   }
 }

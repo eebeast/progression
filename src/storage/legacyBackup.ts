@@ -75,6 +75,19 @@ function validateTimestamps(items: Record<string, unknown>[], key: string, warni
   }
 }
 
+function validateRecovery(value: Record<string, unknown>) {
+  const stores = new Set(['settings','exercises','templates','sessions','logs','runs','bodyWeights','programOrder']);
+  const row = (item: unknown): item is Record<string, unknown> => isRecord(item) && stores.has(String(item.store)) &&
+    typeof item.id === 'string' && (item.data === null || (isRecord(item.data) && item.data.id === item.id));
+  const mutation = (item: unknown) => row(item) && Number.isSafeInteger(item.baseVersion) && Number(item.baseVersion) >= 0;
+  const remote = (item: unknown) => row(item) && Number.isSafeInteger(item.version) && Number(item.version) >= 0;
+  const operation = (item: unknown) => isRecord(item) && typeof item.id === 'string' && Array.isArray(item.mutations) && item.mutations.every(mutation);
+  if (!(value.operations as unknown[]).every(operation) || !(value.versions as unknown[]).every(remote) ||
+      !(value.conflicts as unknown[]).every((item) => isRecord(item) && typeof item.id === 'string' && operation(item.operation) && Array.isArray(item.records) && item.records.every(remote))) {
+    throw new Error('Invalid recovery records. The original backup has not been modified.');
+  }
+}
+
 export function parseLegacyBackup(input: unknown): { backup: BackupShape; report: BackupImportReport } {
   if (!isRecord(input) || input.app !== 'workout-tracker' || ![1, 2].includes(input.version as number) || !isRecord(input.data)) {
     throw new Error('This file is not a supported workout backup (expected workout-tracker version 1).');
@@ -83,6 +96,7 @@ export function parseLegacyBackup(input: unknown): { backup: BackupShape; report
     if (!isRecord(input.recovery) || !['operations', 'versions', 'metadata', 'conflicts'].every((key) => Array.isArray((input.recovery as Record<string, unknown>)[key]))) {
       throw new Error('This file is not a supported workout backup (missing version 2 recovery state).');
     }
+    validateRecovery(input.recovery);
   }
   if (typeof input.exportedAt !== 'number' || !Number.isFinite(input.exportedAt)) {
     throw new Error('Invalid workout backup: exportedAt must be a finite timestamp.');

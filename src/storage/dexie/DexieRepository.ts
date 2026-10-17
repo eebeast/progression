@@ -1,6 +1,6 @@
 import Dexie, { liveQuery, type Table } from 'dexie';
 import { canonicalJson, recordStores } from '@/storage/reconciliation';
-import { dependsOn } from '@/storage/sync/dependencies';
+import { dependsOn, dependencyKeys } from '@/storage/sync/dependencies';
 import type { SyncStore, Operation, Mutation, RemoteRecord, PushResult, PullResult, SyncRepository, SyncStatus, SyncConflict } from '@/storage/sync/types';
 
 type QueuedOperation = Operation & { queueId?: number };
@@ -111,7 +111,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   }
 
   /** All account mutations, including multi-record actions, commit with their outbox group. */
-  private async mutate<T>(action: () => Promise<T>): Promise<T> {
+  private async mutate<T>(action: () => Promise<T>, batchImport = false): Promise<T> {
     if (Dexie.currentTransaction?.db === this.db) return action();
     return this.db.transaction('rw', this.db.tables, async () => {
       if (!this.accountIdentity) return action();
@@ -128,9 +128,26 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         mutations.push({ store: row.store, id: row.id, data: after.get(key)?.data ?? null,
           baseVersion: (accepted?.version ?? 0) + preceding });
       }
-      if (mutations.length) await this.db.outbox.add({ id: newId(), mutations, createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 });
+      await this.enqueue(mutations, batchImport);
       return result;
     });
+  }
+
+  private async enqueue(mutations: Mutation[], batch = false): Promise<void> {
+    const order = ['settings', 'exercises', 'templates', 'sessions', 'logs', 'runs', 'bodyWeights', 'programOrder'];
+    if (batch) mutations.sort((a, b) => order.indexOf(a.store) - order.indexOf(b.store));
+    const chunks: Mutation[][] = []; let chunk: Mutation[] = [];
+    for (const mutation of mutations) {
+      const next = [...chunk, mutation];
+      if (next.length > 400 || new TextEncoder().encode(JSON.stringify(next)).length > 1_000_000) {
+        if (!batch || !chunk.length) throw new Error('This atomic change is too large to sync. Split it into smaller changes.');
+        chunks.push(chunk); chunk = [];
+      }
+      chunk.push(mutation);
+      if (new TextEncoder().encode(JSON.stringify(chunk)).length > 1_000_000) throw new Error('An individual record is too large to sync.');
+    }
+    if (chunk.length) chunks.push(chunk);
+    for (const group of chunks) await this.db.outbox.add({ id: newId(), mutations: group, createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 });
   }
 
   observeSyncStatus(): Observable<SyncStatus> {
@@ -187,7 +204,14 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         const current = await this.db.versions.get(key);
         if ((current?.version ?? 0) > row.version) continue;
         await this.db.versions.put({ ...row, key });
-        if (!pending.some((op) => op.mutations.some((m) => recordKey(m.store, m.id) === key))) await this.applyRecord(row);
+        if (!pending.some((op) => dependencyKeys(op).has(key))) await this.applyRecord(row);
+      }
+      // Pulls may have retained an older parent to keep pending child edits accessible.
+      // Once that intent is acknowledged, expose the latest accepted parent too.
+      for (const key of dependencyKeys(operation)) {
+        if (pending.some((op) => dependencyKeys(op).has(key))) continue;
+        const accepted = await this.db.versions.get(key);
+        if (accepted) await this.applyRecord(accepted);
       }
     });
   }
@@ -210,9 +234,9 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       for (const row of page.changes) {
         const key = recordKey(row.store, row.id);
         const current = await this.db.versions.get(key);
-        if ((current?.version ?? 0) >= row.version) continue;
+        if ((current?.version ?? 0) > row.version) continue;
         await this.db.versions.put({ ...row, key });
-        if (!pending.some((op) => op.mutations.some((m) => recordKey(m.store, m.id) === key))) await this.applyRecord(row);
+        if (!pending.some((op) => dependencyKeys(op).has(key))) await this.applyRecord(row);
       }
       await this.db.syncMeta.put({ id: 'cursor', value: page.cursor });
     });
@@ -224,34 +248,43 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     await this.db.transaction('rw', this.db.tables, async () => {
       const conflict = await this.db.syncConflicts.get(id);
       if (!conflict) return;
+      if (!this.accountIdentity) {
+        if (choice === 'remote') for (const row of conflict.records) await this.applyRecord(row);
+        await this.db.syncConflicts.delete(id);
+        return;
+      }
       const queue = await this.db.outbox.toArray();
-      const affected = new Set(conflict.operation.mutations.map((m) => recordKey(m.store, m.id)));
       const linked = new Set<string>([id]);
-      // Include dependent atomic groups; one group must never be half discarded.
       let changed = true;
       while (changed) {
         changed = false;
-        for (const op of queue) if (!linked.has(op.id) && op.mutations.some((m) => affected.has(recordKey(m.store, m.id)))) {
-          linked.add(op.id); op.mutations.forEach((m) => affected.add(recordKey(m.store, m.id))); changed = true;
+        for (const op of queue) if (!linked.has(op.id) && queue.some((prior) => linked.has(prior.id) && dependsOn(op, prior))) {
+          linked.add(op.id); changed = true;
         }
       }
+      const selected = queue.filter((op) => linked.has(op.id));
+      const originals = selected.flatMap((op) => op.mutations);
+      const affected = new Set(originals.map((m) => recordKey(m.store, m.id)));
       const snapshot = await this.snapshot();
+      // A rejected child must keep its locally known parent available for explicit restoration.
+      for (const op of selected) for (const key of dependencyKeys(op)) {
+        const accepted = await this.db.versions.get(key);
+        if (accepted?.data === null && snapshot.has(key)) affected.add(key);
+      }
       const mutations: Mutation[] = [];
       for (const key of affected) {
-        const accepted = await this.db.versions.get(key);
-        const row = snapshot.get(key);
-        const original = queue.flatMap((op) => op.mutations).find((m) => recordKey(m.store, m.id) === key)!;
-        if (choice === 'remote') {
-          await this.applyRecord(accepted ?? { store: original.store, id: original.id, version: 0, data: null });
-        } else if (canonicalJson(row?.data ?? null) !== canonicalJson(accepted?.data ?? null)) {
+        const accepted = await this.db.versions.get(key); const row = snapshot.get(key);
+        const original = originals.find((m) => recordKey(m.store, m.id) === key) ?? accepted ?? row;
+        if (!original) continue;
+        if (choice === 'remote') await this.applyRecord(accepted ?? { store: original.store, id: original.id, version: 0, data: null });
+        else if (canonicalJson(row?.data ?? null) !== canonicalJson(accepted?.data ?? null)) {
           mutations.push({ store: original.store, id: original.id, data: row?.data ?? null, baseVersion: accepted?.version ?? 0 });
         }
       }
       for (const operationId of linked) {
-        await this.db.outbox.where('id').equals(operationId).delete();
-        await this.db.syncConflicts.delete(operationId);
+        await this.db.outbox.where('id').equals(operationId).delete(); await this.db.syncConflicts.delete(operationId);
       }
-      if (mutations.length) await this.db.outbox.add({ id: newId(), mutations, createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 });
+      await this.enqueue(mutations, true);
     });
   }
 
@@ -408,6 +441,8 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   }
 
   /* ----------------------------- templates ----------------------------- */
+
+  
 
   observeTemplates(): Observable<WorkoutTemplate[]> {
     return liveQuery(async () => {
@@ -589,6 +624,8 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       return logs.sort((a, b) => a.timestamp - b.timestamp);
     });
   }
+
+  
 
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]> {
     return liveQuery(async () => {
@@ -811,7 +848,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   }
 
   /** Replaces ALL data. Caller is responsible for confirming first. */
-  async importData(file: File): Promise<void> {
+  async importData(file: File, options?: { preferences: 'keep' | 'source' }): Promise<void> {
     let parsed: unknown;
     try {
       parsed = JSON.parse(await file.text());
@@ -821,7 +858,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     const { backup } = parseLegacyBackup(parsed);
     const { settings, exercises, templates, sessions, logs, runs, bodyWeights } = backup.data;
     // Account imports merge entity data through new operations, never transplant another outbox.
-    if (backup.recovery?.conflicts.length) {
+    if (this.accountIdentity && backup.recovery?.conflicts.length) {
       throw new Error('This recovery backup includes unresolved conflicts. Resolve them on the source account before a normal import.');
     }
 
@@ -830,11 +867,12 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       async () => {
         if (this.accountIdentity) {
           for (const store of recordStores) {
+            if (store === 'settings' && options?.preferences !== 'source') continue; // Existing account preferences are chosen separately from history.
             for (const row of backup.data[store] ?? []) {
               const existing = await this.db.table(store).get(row.id);
               const unclaimedSettings = store === 'settings' && !existing?.userName &&
                 !(await this.db.versions.get('settings/singleton'));
-              if (existing && !unclaimedSettings && canonicalJson(existing) !== canonicalJson(row)) {
+              if (existing && !(store === 'settings' && options?.preferences === 'source') && !unclaimedSettings && canonicalJson(existing) !== canonicalJson(row)) {
                 throw new Error(`Import collision in ${store}: ${row.id}. Existing account data has not been replaced.`);
               }
               await this.db.table(store).put(row);
@@ -858,8 +896,21 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         if (logs?.length) await this.db.logs.bulkPut(logs);
         if (runs?.length) await this.db.runs.bulkPut(runs);
         if (bodyWeights?.length) await this.db.bodyWeights.bulkPut(bodyWeights);
+        await this.db.outbox.clear(); await this.db.versions.clear();
+        await this.db.syncMeta.clear(); await this.db.syncConflicts.clear();
+        if (backup.recovery && (backup.recovery.operations.length || backup.recovery.conflicts.length)) {
+          // Restore foreign intent for review, never as a transport queue for this device/account.
+          const originals = [...backup.recovery.operations, ...backup.recovery.conflicts.map((c) => c.operation)];
+          const intent = new Map(originals.flatMap((op) => op.mutations).map((m) => [recordKey(m.store, m.id), m]));
+          const accepted = new Map([...backup.recovery.versions, ...backup.recovery.conflicts.flatMap((c) => c.records)]
+            .map((row) => [recordKey(row.store, row.id), row]));
+          const id = newId();
+          await this.db.syncConflicts.put({ id, operation: { id, mutations: [...intent.values()], createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 },
+            records: [...intent.keys()].map((key) => accepted.get(key) ?? { ...intent.get(key)!, data: null, version: 0 }),
+            error: 'Recovered pending edits: current local values are preserved. Review the saved cloud versions before choosing.' });
+        }
       },
-    ));
+    ), true);
   }
 }
 

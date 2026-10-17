@@ -30,6 +30,7 @@ export function CloudSection() {
         }}>Copy local history to this account</Button>
         <Button variant="outline" disabled={busy} onClick={() => act(cloud.signOut)}>Sign out</Button>
         <p className="text-xs text-muted-foreground">Pending changes stay with this account after sign-out. The app syncs while open or when reopened online.</p>
+      </>}
         {cloud.conflicts.map((conflict) => <div className="rounded-xl border border-border p-3" key={conflict.id}>
           <p className="font-medium">{conflict.error ?? 'Competing edits'}</p>
           <p className="my-2 text-xs">This choice applies to the linked edits in this group, including later pending edits. Export a backup to preserve both versions.</p>
@@ -44,7 +45,6 @@ export function CloudSection() {
             }}>Use cloud values</Button>
           </div>
         </div>)}
-      </>}
     {(message || cloud.error || cloud.status.error) && <p role="alert" className="text-sm text-destructive">{message ?? cloud.error ?? cloud.status.error}</p>}
   </section>;
 }

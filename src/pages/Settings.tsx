@@ -80,7 +80,7 @@ export default function SettingsPage() {
         `This backup contains:\n${counts}${warnings}\n\n${cloud?.account ? 'Copy records into this account? Different records with the same ID will block the import.' : 'Importing replaces ALL current data. This cannot be undone. Continue?'}`,
       );
       if (!ok) return;
-      await repo.importData(file);
+      await repo.importData(file, cloud?.account ? { preferences: window.confirm('Also use the backup’s name, units and appearance? Cancel keeps current account preferences while importing history.') ? 'source' : 'keep' } : undefined);
       window.location.reload();
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Import failed.');
@@ -215,7 +215,7 @@ export default function SettingsPage() {
           />
           {importError && <p className="text-sm text-destructive">{importError}</p>}
           <p className="text-xs text-muted-foreground">
-            {cloud?.account ? 'Account imports copy records and queue cloud updates. Different records with the same ID need review.' : 'Importing replaces all local data. Everything stays on this device until you choose to copy it to an account.'}
+            {cloud?.account ? 'Account imports copy history and let you choose preferences, then queue cloud updates. Different records with the same ID need review.' : 'Importing replaces all local data. Everything stays on this device until you choose to copy it to an account.'}
           </p>
         </div>
       </div>
