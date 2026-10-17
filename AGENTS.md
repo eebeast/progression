@@ -54,6 +54,13 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 `WorkoutSession`, `WorkoutTemplate`/`TemplateExercise` (has `metric?`), `Run`,
 `BodyWeightEntry`.
 
+New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at start.
+`Workout` uses that snapshot, including an intentionally empty list; legacy sessions
+without it fall back to their current template. Never backfill historical prescriptions
+from a plan that may have changed. This optional field requires no schema bump.
+Repository tests use `fake-indexeddb` and cover import/export, rollback, seeding,
+concurrent set numbering, and session snapshots.
+
 ## Feature map
 
 - **Warm-up sets** — `ExerciseLog.isWarmup`; `components/WarmupToggle.tsx`; filtered out
@@ -78,6 +85,9 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
   `components/ShareButton.tsx` (`navigator.share`, else clipboard). Used in `Summary`
   and `HistoryDetail`.
+- **Backup migration inspection** — `storage/legacyBackup.ts` validates v1 backup
+  containers and IDs, reports suspicious timestamps and unresolved references without
+  rewriting source records, and feeds the Settings import confirmation before replacement.
 - **Body-weight log** — `bodyWeights` store + `observe/add/update/deleteBodyWeight`;
   `components/BodyWeightSection.tsx` on the Activity page.
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`

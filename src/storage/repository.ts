@@ -10,6 +10,7 @@ import type {
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
+import type { BackupImportReport } from '@/storage/legacyBackup';
 
 /**
  * A minimal rxjs-style Observable so the storage seam has NO dependency on
@@ -152,5 +153,6 @@ export interface WorkoutRepository {
 
   // backup
   exportData(): Promise<void>;
+  inspectImport(file: File): Promise<BackupImportReport>;
   importData(file: File): Promise<void>;
 }

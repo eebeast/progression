@@ -1,4 +1,6 @@
 import Dexie, { liveQuery, type Table } from 'dexie';
+import { recordStores } from '@/storage/reconciliation';
+
 import type {
   BodyWeightEntry,
   Exercise,
@@ -21,6 +23,11 @@ import type {
   TemplateInput,
   WorkoutRepository,
 } from '@/storage/repository';
+import {
+  inspectLegacyBackup,
+  parseLegacyBackup,
+  type BackupShape,
+} from '@/storage/legacyBackup';
 
 /* ------------------------------- Schema ------------------------------- */
 
@@ -33,8 +40,8 @@ class WorkoutDB extends Dexie {
   runs!: Table<Run, string>;
   bodyWeights!: Table<BodyWeightEntry, string>;
 
-  constructor() {
-    super('workout-tracker');
+  constructor(name = 'workout-tracker') {
+    super(name);
     this.version(1).stores({
       settings: 'id',
       exercises: 'id, name',
@@ -53,28 +60,21 @@ class WorkoutDB extends Dexie {
   }
 }
 
-interface BackupShape {
-  app: 'workout-tracker';
-  version: 1;
-  exportedAt: number;
-  data: {
-    settings: Settings[];
-    exercises: Exercise[];
-    templates: WorkoutTemplate[];
-    sessions: WorkoutSession[];
-    logs: ExerciseLog[];
-    runs?: Run[];
-    bodyWeights?: BodyWeightEntry[];
-  };
-}
-
 /**
  * The Dexie/IndexedDB implementation of WorkoutRepository. This is the ONLY file
  * that imports `dexie`. Reactive reads use `liveQuery(...)` (a compatible
  * Observable); writes reuse the original query logic.
  */
 export class DexieRepository implements WorkoutRepository {
-  private db = new WorkoutDB();
+  private db: WorkoutDB;
+
+  constructor(databaseName = 'workout-tracker') {
+    this.db = new WorkoutDB(databaseName);
+  }
+
+  close(): void {
+    this.db.close();
+  }
 
   /* ----------------------------- settings ----------------------------- */
 
@@ -108,7 +108,10 @@ export class DexieRepository implements WorkoutRepository {
       }
 
       if ((await this.db.templates.count()) === 0) {
-        const exerciseByName = new Map<string, Exercise>();
+        const existingExercises = await this.db.exercises.toArray();
+        const exerciseByName = new Map<string, Exercise>(
+          existingExercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]),
+        );
         const ensureExercise = (name: string): Exercise => {
           const key = name.toLowerCase();
           let ex = exerciseByName.get(key);
@@ -142,9 +145,7 @@ export class DexieRepository implements WorkoutRepository {
           };
         });
 
-        if ((await this.db.exercises.count()) === 0) {
-          await this.db.exercises.bulkPut([...exerciseByName.values()]);
-        }
+        await this.db.exercises.bulkPut([...exerciseByName.values()]);
         await this.db.templates.bulkPut(templates);
       }
     });
@@ -258,6 +259,7 @@ export class DexieRepository implements WorkoutRepository {
       id: newId(),
       templateId: template.id,
       templateName: template.name,
+      exercises: structuredClone(template.exercises),
       date: now,
       startTime: now,
       endTime: null,
@@ -356,20 +358,22 @@ export class DexieRepository implements WorkoutRepository {
   }
 
   async addSet(input: NewSetInput): Promise<void> {
-    const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId);
-    const log: ExerciseLog = {
-      id: newId(),
-      sessionId: input.sessionId,
-      exerciseId: input.exerciseId,
-      exerciseName: input.exerciseName,
-      setNumber: existing.length + 1,
-      weight: input.weight,
-      reps: input.reps,
-      metric: input.metric ?? 'reps',
-      isWarmup: input.isWarmup ?? false,
-      timestamp: Date.now(),
-    };
-    await this.db.logs.put(log);
+    await this.db.transaction('rw', this.db.logs, async () => {
+      const existing = await this.logsForSessionExercise(input.sessionId, input.exerciseId);
+      const log: ExerciseLog = {
+        id: newId(),
+        sessionId: input.sessionId,
+        exerciseId: input.exerciseId,
+        exerciseName: input.exerciseName,
+        setNumber: Math.max(0, ...existing.map((set) => set.setNumber)) + 1,
+        weight: input.weight,
+        reps: input.reps,
+        metric: input.metric ?? 'reps',
+        isWarmup: input.isWarmup ?? false,
+        timestamp: Date.now(),
+      };
+      await this.db.logs.put(log);
+    });
   }
 
   async updateSet(
@@ -468,24 +472,19 @@ export class DexieRepository implements WorkoutRepository {
 
   /* ------------------------------ backup ------------------------------ */
 
+  async createBackup(): Promise<BackupShape> {
+    return this.db.transaction('r', this.db.tables, async () => {
+      const data = {} as BackupShape['data'];
+      for (const store of recordStores) {
+        // Store types share a record identity; the public shape remains strongly typed.
+        Object.assign(data, { [store]: await this.db.table(store).toArray() });
+      }
+      return { app: 'workout-tracker', version: 1, exportedAt: Date.now(), data };
+    });
+  }
+
   async exportData(): Promise<void> {
-    const [settings, exercises, templates, sessions, logs, runs, bodyWeights] = await Promise.all([
-      this.db.settings.toArray(),
-      this.db.exercises.toArray(),
-      this.db.templates.toArray(),
-      this.db.sessions.toArray(),
-      this.db.logs.toArray(),
-      this.db.runs.toArray(),
-      this.db.bodyWeights.toArray(),
-    ]);
-
-    const backup: BackupShape = {
-      app: 'workout-tracker',
-      version: 1,
-      exportedAt: Date.now(),
-      data: { settings, exercises, templates, sessions, logs, runs, bodyWeights },
-    };
-
+    const backup = await this.createBackup();
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const stamp = new Date().toISOString().slice(0, 10);
@@ -498,16 +497,20 @@ export class DexieRepository implements WorkoutRepository {
     URL.revokeObjectURL(url);
   }
 
+  inspectImport(file: File) {
+    return inspectLegacyBackup(file);
+  }
+
   /** Replaces ALL data. Caller is responsible for confirming first. */
   async importData(file: File): Promise<void> {
-    const text = await file.text();
-    const parsed = JSON.parse(text) as Partial<BackupShape>;
-
-    if (parsed.app !== 'workout-tracker' || !parsed.data) {
-      throw new Error('This file is not a valid workout backup.');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      throw new Error('The selected file is not valid JSON.');
     }
-
-    const { settings, exercises, templates, sessions, logs, runs, bodyWeights } = parsed.data;
+    const { backup } = parseLegacyBackup(parsed);
+    const { settings, exercises, templates, sessions, logs, runs, bodyWeights } = backup.data;
 
     await this.db.transaction(
       'rw',

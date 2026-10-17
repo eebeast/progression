@@ -26,6 +26,7 @@ import type {
   TemplateInput,
   WorkoutRepository,
 } from '@/storage/repository';
+import type { BackupImportReport } from '@/storage/legacyBackup';
 
 const TODO = () => {
   throw new Error('not implemented');
@@ -165,6 +166,9 @@ export class HttpRepository implements WorkoutRepository {
 
   // backup
   exportData(): Promise<void> {
+    return TODO();
+  }
+  inspectImport(_file: File): Promise<BackupImportReport> {
     return TODO();
   }
   importData(_file: File): Promise<void> {

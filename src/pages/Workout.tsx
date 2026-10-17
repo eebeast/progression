@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check, SkipForward, Flag } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
-import { of, type LastPerformed } from '@/storage/repository';
+import { of, type LastPerformed, type Observer } from '@/storage/repository';
 import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -24,16 +24,27 @@ export default function Workout() {
   const session = useObservable(() => repo.observeSession(sessionId), [repo, sessionId]);
   const templateId = session?.templateId;
   const template = useObservable(
-    () => (templateId ? repo.observeTemplate(templateId) : of<WorkoutTemplate | undefined>(undefined)),
-    [repo, templateId],
+    () => {
+      if (!templateId) return of<WorkoutTemplate | null | undefined>(undefined);
+      if (session?.exercises) return of<WorkoutTemplate | null>(null);
+      return {
+        subscribe(observer: Observer<WorkoutTemplate | null>) {
+          return repo.observeTemplate(templateId).subscribe({
+            next: (value) => observer.next(value ?? null),
+            error: (error) => observer.error?.(error),
+          });
+        },
+      };
+    },
+    [repo, templateId, session?.exercises],
   );
   const allLogs =
     useObservable(() => repo.observeSessionLogs(sessionId), [repo, sessionId]) ??
     ([] as ExerciseLog[]);
 
   const exercises = React.useMemo<TemplateExercise[]>(
-    () => (template ? [...template.exercises].sort((a, b) => a.order - b.order) : []),
-    [template],
+    () => [...(session?.exercises ?? template?.exercises ?? [])].sort((a, b) => a.order - b.order),
+    [session?.exercises, template],
   );
 
   const [index, setIndex] = React.useState(0);
@@ -140,7 +151,7 @@ export default function Workout() {
   const completedSets = allLogs.filter((l) => !l.isWarmup).length;
   const progressPct = totalTarget > 0 ? (completedSets / totalTarget) * 100 : 0;
 
-  if (session === undefined || template === undefined) {
+  if (session === undefined || (session && !session.exercises && template === undefined)) {
     return <div className="min-h-[100dvh] bg-background" />;
   }
   if (!session) {
@@ -193,7 +204,7 @@ export default function Workout() {
             <ChevronLeft className="h-6 w-6" />
           </button>
         }
-        title={template.name}
+        title={session.templateName}
         right={
           <button
             type="button"

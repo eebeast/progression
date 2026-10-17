@@ -1,20 +1,20 @@
-export type Unit = 'kg' | 'lb';
-export type Theme = 'light' | 'dark' | 'system';
-export type Accent = 'blue' | 'purple' | 'orange' | 'green';
-export type Feeling = 'good' | 'ok' | 'rough';
-export type SessionStatus = 'active' | 'completed';
+export type Unit = "kg" | "lb";
+export type Theme = "light" | "dark" | "system";
+export type Accent = "blue" | "purple" | "orange" | "green";
+export type Feeling = "good" | "ok" | "rough";
+export type SessionStatus = "active" | "completed";
 /** How a set is measured: repetitions, or a hold/duration in seconds. */
-export type Metric = 'reps' | 'time';
+export type Metric = "reps" | "time";
 
 export interface Settings {
-  id: 'singleton';
+  id: "singleton";
   userName: string;
   unit: Unit;
   theme: Theme;
   accent: Accent;
   weightIncrement: number;
-  weeklyGoal: number; // target active days per week
-  showExerciseLibrary?: boolean; // show the Exercises browse tab
+  weeklyGoal: number;
+  showExerciseLibrary?: boolean;
 }
 
 export interface Exercise {
@@ -46,6 +46,8 @@ export interface WorkoutSession {
   id: string;
   templateId: string;
   templateName: string;
+  /** Plan at start time; absent on legacy sessions. Never rebuilt on import. */
+  exercises?: TemplateExercise[];
   date: number;
   startTime: number;
   endTime: number | null;

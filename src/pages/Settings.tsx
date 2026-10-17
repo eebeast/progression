@@ -63,11 +63,20 @@ export default function SettingsPage() {
 
   const onImportFile = async (file: File) => {
     setImportError(null);
-    const ok = window.confirm(
-      'Importing replaces ALL current data with the backup. This cannot be undone. Continue?',
-    );
-    if (!ok) return;
     try {
+      const report = await repo.inspectImport(file);
+      const counts = Object.entries(report.counts)
+        .map(([type, count]) => `${type}: ${count}`)
+        .join('\n');
+      const warnings = report.warnings.length
+        ? `\n\nReview warnings:\n${report.warnings.slice(0, 5).map((warning) => `- ${warning}`).join('\n')}${
+            report.warnings.length > 5 ? `\n- And ${report.warnings.length - 5} more.` : ''
+          }`
+        : '';
+      const ok = window.confirm(
+        `This backup contains:\n${counts}${warnings}\n\nImporting replaces ALL current data. This cannot be undone. Continue?`,
+      );
+      if (!ok) return;
       await repo.importData(file);
       window.location.reload();
     } catch (err) {
