@@ -19,7 +19,7 @@ export function RestTimer({ endsAt, initialSeconds, onChange }: {
     setError(undefined);
     try { await onChange(value); setNow(Date.now()); } catch { setError('Timer could not be saved.'); }
   };
-  return <section className="flex flex-col gap-2 rounded-xl border border-border p-3" aria-label="Rest timer">
+  return <details open={!!endsAt} className="rounded-xl border border-border p-3" aria-label="Rest timer"><summary className="cursor-pointer text-sm font-medium text-muted-foreground">Rest timer</summary><div className="mt-3 flex flex-col gap-2">
     <div className="flex items-center gap-2">
       <label className="flex-1 text-sm">Rest seconds<Input aria-label="Rest seconds" type="number" min={0} step={5} value={seconds} onChange={(e) => setSeconds(Math.max(0, Number(e.target.value)))} /></label>
       <Button variant="outline" disabled={!Number.isFinite(seconds) || seconds <= 0} onClick={() => change(Date.now() + seconds * 1000)}>Start timer</Button>
@@ -27,5 +27,5 @@ export function RestTimer({ endsAt, initialSeconds, onChange }: {
     </div>
     {!!endsAt && <p role="timer" className="text-sm tabular-nums">{remaining ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')} remaining` : 'Rest timer finished'}</p>}
     {error && <p role="alert" className="text-destructive">{error}</p>}
-  </section>;
+  </div></details>;
 }

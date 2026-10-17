@@ -49,7 +49,7 @@ export function Stepper({
   };
 
   const commit = (raw: string) => {
-    const parsed = decimal ? parseFloat(raw) : parseInt(raw, 10);
+    const parsed = decimal ? parseFloat(raw.replace(',', '.')) : parseInt(raw, 10);
     if (Number.isNaN(parsed)) {
       onChange(min);
       setText(String(min));
@@ -88,7 +88,13 @@ export function Stepper({
           value={text}
           autoFocus={autoFocus}
           onFocus={(e) => e.currentTarget.select()}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => {
+            const raw = event.target.value;
+            setText(raw);
+            // Keep incomplete text editable while making complete values saveable immediately.
+            const valid = decimal ? /^\d+(?:[.,]\d+)?$/.test(raw) : /^\d+$/.test(raw);
+            if (valid) onChange(clamp(round(Number(raw.replace(',', '.')))));
+          }}
           onBlur={(e) => commit(e.target.value)}
           className={cn(
             'h-14 w-full min-w-0 flex-1 rounded-lg border border-input bg-card px-1 text-center text-2xl font-bold tabular-nums',

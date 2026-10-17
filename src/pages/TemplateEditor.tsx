@@ -179,23 +179,19 @@ export default function TemplateEditor() {
 
         <div className="flex flex-col gap-3">
           <Label>Exercises</Label>
+          <datalist id="plan-exercise-suggestions">{library.filter((exercise) => !exercise.archivedAt).map((exercise) => <option key={exercise.id} value={exercise.name} />)}</datalist>
           {rows.map((r, i) => (
             <div key={r.key} className="rounded-xl border border-border bg-card p-3">
-              <label className="mb-3 flex flex-col gap-1 text-sm">Library exercise
-                <select aria-label={`Library exercise ${i + 1}`} value={r.exerciseId ?? ''} className="rounded-lg border border-border bg-background p-2"
-                  onChange={(event) => {
-                    const exercise = library.find((e) => e.id === event.target.value);
-                    updateRow(r.key, { exerciseId: exercise?.id, name: exercise?.name ?? '', confirmedDistinct: false });
-                  }}>
-                  <option value="">New custom exercise</option>
-                  {library.filter((e) => !e.archivedAt || e.id === r.exerciseId).map((e) => <option key={e.id} value={e.id}>{e.name}{e.archivedAt ? ' (archived)' : ''}</option>)}
-                </select>
-              </label>
               <div className="mb-3 flex items-center gap-2">
                 <Input
+                  list="plan-exercise-suggestions"
                   value={r.name}
                   aria-label={`Exercise name ${i + 1}`}
-                  onChange={(e) => updateRow(r.key, { name: e.target.value, exerciseId: undefined, confirmedDistinct: false })}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === value.trim().toLowerCase());
+                    updateRow(r.key, { name: value, exerciseId: matches.length === 1 ? matches[0].id : undefined, confirmedDistinct: false });
+                  }}
                   placeholder="Exercise name"
                   className="flex-1"
                 />
@@ -255,7 +251,7 @@ export default function TemplateEditor() {
                 </div>
               </div>
 
-              <label className="mt-3 flex flex-col gap-1 text-sm">Rest seconds (optional)<Input type="number" min={0} step={5} value={r.restSeconds ?? ''} onChange={(e) => updateRow(r.key, { restSeconds: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })} /></label>
+              <details className="mt-3 text-sm text-muted-foreground"><summary className="cursor-pointer">Rest timer</summary><label className="mt-2 flex flex-col gap-1 text-sm">Rest seconds (optional)<Input type="number" min={0} step={5} value={r.restSeconds ?? ''} onChange={(e) => updateRow(r.key, { restSeconds: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })} /></label></details>
               <div className="mt-3 flex items-center justify-end gap-1">
                 <button
                   type="button"

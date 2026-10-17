@@ -36,13 +36,18 @@ export default function Exercises() {
     <PageHeader title="Exercises" />
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-4">
       <Input aria-label="Search exercises" placeholder="Search exercises" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <label className="text-sm"><input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived exercises</label>
+      
       {exercises.map((exercise) => <div key={exercise.id} className="flex items-center gap-2 rounded-xl border border-border bg-card p-3">
         <button className="flex flex-1 items-center justify-between text-left font-semibold" onClick={() => navigate(`/exercise/${exercise.id}`)}>{exercise.name}<ChevronRight className="h-5 w-5" /></button>
-        <Button variant="outline" disabled={!!exercise.merge} onClick={() => { setEdit(exercise); setName(exercise.name); setMuscle(exercise.primaryMuscle ?? ''); setEquipment(exercise.equipment ?? ''); setMergeTarget(''); setDistinct(false); }}>Edit</Button>
+        
       </div>)}
       {library && !exercises.length && <p className="text-sm text-muted-foreground">No matching exercises.</p>}
-      <section className="flex flex-col gap-3 rounded-xl border border-border p-4" aria-label="Exercise editor">
+      <details className="rounded-xl border border-border bg-card p-4"><summary className="cursor-pointer text-sm font-medium text-muted-foreground">Manage exercise library</summary>
+      <section className="mt-4 flex flex-col gap-3" aria-label="Exercise editor">
+        <label className="text-sm">Edit an exercise<select className="mt-1 w-full rounded-lg border border-input bg-card p-3 text-foreground" value={edit?.id ?? ''} onChange={(event) => {
+          const exercise = library?.find((e) => e.id === event.target.value); setEdit(exercise ?? null); setName(exercise?.name ?? ''); setMuscle(exercise?.primaryMuscle ?? ''); setEquipment(exercise?.equipment ?? ''); setMergeTarget(''); setDistinct(false);
+        }}><option value="">Add a new exercise</option>{(library ?? []).filter((exercise) => !exercise.merge).map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.name}{exercise.archivedAt ? ' (archived)' : ''}</option>)}</select></label>
+        <label className="text-sm"><input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show archived exercises in the list</label>
         <h2 className="font-semibold">{edit ? `Edit ${edit.name}` : 'Add custom exercise'}</h2>
         <label>Name<Input value={name} onChange={(e) => { setName(e.target.value); setDistinct(false); }} /></label>
         <label>Primary muscle (optional)<Input value={muscle} onChange={(e) => setMuscle(e.target.value)} /></label>
@@ -67,7 +72,7 @@ export default function Exercises() {
           <Button variant="ghost" onClick={() => { setEdit(null); setName(''); setDistinct(false); }}>Cancel edit</Button>
         </>}
         {error && <p role="alert" className="text-destructive">{error}</p>}
-      </section>
+      </section></details>
     </div>
   </div>;
 }

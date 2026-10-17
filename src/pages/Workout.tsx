@@ -106,7 +106,7 @@ export default function Workout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo, current?.exerciseId, sessionId]);
 
-  const isStarted = current ? started.has(current.exerciseId) || currentLogs.length > 0 : false;
+  const isStarted = current ? started.has(current.assignmentId ?? current.exerciseId) || currentLogs.length > 0 : false;
   // Only working sets count toward the target.
   const workingSetCount = currentLogs.filter((l) => !l.isWarmup).length;
   const targetMet = current ? workingSetCount >= current.targetSets : false;
@@ -126,7 +126,8 @@ export default function Workout() {
     } else if (
       lastWorkout &&
       lastWorkout.sets.length > 0 &&
-      lastWorkout.sets[0].exerciseId === current.exerciseId
+      lastWorkout.sets[0].exerciseId === current.exerciseId &&
+      (lastWorkout.sets[0].metric ?? 'reps') === (current.metric ?? 'reps')
     ) {
       setWeight(lastWorkout.sets[0].weight);
       setReps(lastWorkout.sets[0].reps);
@@ -135,7 +136,7 @@ export default function Workout() {
       setReps(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.exerciseId, lastWorkout]);
+  }, [current?.exerciseId, current?.assignmentId, current?.metric, lastWorkout]);
 
   // Flash the newest set once the live logs reflect a just-saved set.
   const pendingFlash = React.useRef(false);
@@ -174,7 +175,7 @@ export default function Workout() {
 
   const startExercise = () => {
     if (!current) return;
-    setStarted((prev) => new Set(prev).add(current.exerciseId));
+    setStarted((prev) => new Set(prev).add(current.assignmentId ?? current.exerciseId));
   };
 
   const saveSet = async () => {
