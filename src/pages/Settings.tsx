@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { CloudSection } from '@/components/CloudSection';
+import { useCloud } from '@/auth/CloudProvider';
 import { Download, Upload } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useSettings } from '@/hooks/useSettings';
@@ -57,6 +59,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default function SettingsPage() {
   const repo = useRepo();
+  const cloud = useCloud();
   const { settings } = useSettings();
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
@@ -74,7 +77,7 @@ export default function SettingsPage() {
           }`
         : '';
       const ok = window.confirm(
-        `This backup contains:\n${counts}${warnings}\n\nImporting replaces ALL current data. This cannot be undone. Continue?`,
+        `This backup contains:\n${counts}${warnings}\n\n${cloud?.account ? 'Copy records into this account? Different records with the same ID will block the import.' : 'Importing replaces ALL current data. This cannot be undone. Continue?'}`,
       );
       if (!ok) return;
       await repo.importData(file);
@@ -89,6 +92,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
+        <CloudSection />
         <Row label="Name">
           <Input
             value={settings.userName}
@@ -211,7 +215,7 @@ export default function SettingsPage() {
           />
           {importError && <p className="text-sm text-destructive">{importError}</p>}
           <p className="text-xs text-muted-foreground">
-            Importing replaces all current data. Everything stays on this device.
+            {cloud?.account ? 'Account imports copy records and queue cloud updates. Different records with the same ID need review.' : 'Importing replaces all local data. Everything stays on this device until you choose to copy it to an account.'}
           </p>
         </div>
       </div>
