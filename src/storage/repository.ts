@@ -104,7 +104,8 @@ export interface WorkoutRepository {
   mergeExercises(sourceId: string, targetId: string): Promise<void>;
 
   // templates
-  observeTemplates(): Observable<WorkoutTemplate[]>;
+  installFourDayPlan(): Promise<void>;
+  observeTemplates(includeArchived?: boolean): Observable<WorkoutTemplate[]>;
   getTemplate(id: string): Promise<WorkoutTemplate | undefined>;
   observeTemplate(id: string): Observable<WorkoutTemplate | undefined>;
   createTemplate(input: TemplateInput): Promise<string>;
@@ -129,6 +130,7 @@ export interface WorkoutRepository {
 
   // logs (sets)
   observeSessionLogs(sessionId: string): Observable<ExerciseLog[]>;
+  observeAllLogs(): Observable<ExerciseLog[]>;
   /** Every logged set for an exercise, across all sessions, oldest first. */
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]>;
   getLastPerformedSets(

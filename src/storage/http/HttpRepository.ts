@@ -59,8 +59,8 @@ export class HttpRepository implements WorkoutRepository {
   mergeExercises(_source: string, _target: string): Promise<void> { return TODO(); }
 
   // templates
-  
-  observeTemplates(): Observable<WorkoutTemplate[]> {
+  installFourDayPlan(): Promise<void> { return TODO(); }
+  observeTemplates(_includeArchived?: boolean): Observable<WorkoutTemplate[]> {
     return TODO();
   }
   getTemplate(_id: string): Promise<WorkoutTemplate | undefined> {
@@ -120,7 +120,7 @@ export class HttpRepository implements WorkoutRepository {
   observeSessionLogs(_sessionId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
-  
+  observeAllLogs(): Observable<ExerciseLog[]> { return TODO(); }
   observeExerciseLogs(_exerciseId: string): Observable<ExerciseLog[]> {
     return TODO();
   }

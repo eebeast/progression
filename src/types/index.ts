@@ -40,6 +40,8 @@ export interface TemplateExercise {
 }
 
 export interface WorkoutTemplate {
+  archivedAt?: number;
+  presetDay?: number;
   id: string;
   name: string;
   order: number;

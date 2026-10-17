@@ -103,7 +103,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         result.set(recordKey(store, id), { store, id, data });
       }
     }
-    const templates = await this.db.templates.toArray();
+    const templates = await this.db.templates.filter((template) => !template.archivedAt).toArray();
     result.set('programOrder/singleton', { store: 'programOrder', id: 'singleton', data: {
       id: 'singleton', orderedIds: templates.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map((row) => row.id),
     } });
@@ -442,11 +442,35 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
 
   /* ----------------------------- templates ----------------------------- */
 
-  
-
-  observeTemplates(): Observable<WorkoutTemplate[]> {
-    return liveQuery(async () => {
+  async installFourDayPlan(): Promise<void> {
+    await this.mutate(async () => {
+      const now = Date.now();
       const templates = await this.db.templates.toArray();
+      for (const template of templates) await this.db.templates.update(template.id, { archivedAt: now });
+      const library = await this.db.exercises.toArray();
+      for (const [order, day] of PROGRAM.entries()) {
+        const exercises: TemplateExercise[] = [];
+        for (const [position, assignment] of day.exercises.entries()) {
+          const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === assignment.name.toLowerCase());
+          // Reuse a single exact match. Ambiguous legacy definitions remain untouched.
+          let exercise = matches.length === 1 ? matches[0] : undefined;
+          if (!exercise) {
+            exercise = { id: newId(), name: assignment.name, createdAt: now };
+            library.push(exercise); await this.db.exercises.add(exercise);
+          }
+          exercises.push({ exerciseId: exercise.id, assignmentId: newId(), name: assignment.name,
+            targetSets: assignment.targetSets, targetRepRange: assignment.targetRepRange, order: position });
+        }
+        const prior = templates.find((template) => template.presetDay === order);
+        await this.db.templates.put({ id: prior?.id ?? newId(), name: day.name, order, estimatedMinutes: day.estimatedMinutes,
+          exercises, presetDay: order, createdAt: prior?.createdAt ?? now, updatedAt: now });
+      }
+    });
+  }
+
+  observeTemplates(includeArchived = false): Observable<WorkoutTemplate[]> {
+    return liveQuery(async () => {
+      const templates = await this.db.templates.filter((template) => includeArchived || !template.archivedAt).toArray();
       return templates.sort((a, b) => a.order - b.order);
     });
   }
@@ -625,7 +649,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     });
   }
 
-  
+  observeAllLogs(): Observable<ExerciseLog[]> { return liveQuery(() => this.db.logs.toArray()); }
 
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]> {
     return liveQuery(async () => {
