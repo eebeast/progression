@@ -1,0 +1,71 @@
+{
+  "rewrites": [
+    {
+      "source": "/onboarding",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/workout/:sessionId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/summary/:sessionId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/activity",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/analytics",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/history",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/history/:sessionId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/exercise/:exerciseId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/exercises",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/templates",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/templates/new",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/templates/:templateId",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/settings",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/callback",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ]
+}

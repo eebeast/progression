@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { InstallSection } from '@/components/InstallSection';
 import { CloudSection } from '@/components/CloudSection';
 import { useCloud } from '@/auth/CloudProvider';
 import { Download, Upload } from 'lucide-react';
@@ -93,6 +94,7 @@ export default function SettingsPage() {
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
         <CloudSection />
+        <InstallSection />
         <Row label="Name">
           <Input
             value={settings.userName}

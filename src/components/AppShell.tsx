@@ -1,3 +1,4 @@
+import { PwaStatus } from '@/components/PwaStatus';
 import { NavLink, useLocation } from 'react-router-dom';
 import { CalendarDays, Dumbbell, History, LayoutGrid, ListChecks, Settings } from 'lucide-react';
 import { useSettings } from '@/hooks/useSettings';
@@ -87,6 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             !hideNav && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-10',
           )}
         >
+          <PwaStatus />
           {children}
         </main>
       </div>

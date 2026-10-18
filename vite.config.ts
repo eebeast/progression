@@ -30,11 +30,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Workout Tracker',
-        short_name: 'Workout',
+        id: '/',
+        name: 'Progression',
+        short_name: 'Progression',
         description: 'A calm, local-first personal workout tracker.',
         theme_color: '#2563EB',
         background_color: '#FAFAFA',
