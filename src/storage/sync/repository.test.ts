@@ -155,3 +155,12 @@ describe('migration and dependent conflict recovery', () => {
     expect(await local.nextOperation(Date.now())).toBeUndefined();
   });
 });
+
+it('preserves rotation when a journal page delivers order before its new template records', async () => {
+  const a = repo();
+  await a.applyChanges({ cursor: 1, hasMore: true, changes: [{ store: 'programOrder', id: 'singleton', version: 1, sequence: 1,
+    data: { id: 'singleton', orderedIds: ['pull', 'push'] } }] });
+  await a.applyChanges({ cursor: 3, hasMore: false, changes: ['push', 'pull'].map((id, index) => ({ store: 'templates' as const, id, version: 1, sequence: index + 2,
+    data: { id, name: id, exercises: [], createdAt: 1, updatedAt: 1, estimatedMinutes: 30 } })) });
+  expect((await first(a.observeTemplates())).map((row) => row.id)).toEqual(['pull', 'push']);
+});

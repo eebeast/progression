@@ -178,7 +178,9 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     else {
       const data = { ...record.data };
       if (record.store === 'templates') {
-        data.order = (await this.db.templates.get(record.id))?.order ?? 0;
+        const ids = (await this.db.versions.get('programOrder/singleton'))?.data?.orderedIds as string[] | undefined;
+        const index = ids?.indexOf(record.id) ?? -1;
+        data.order = index >= 0 ? index : (await this.db.templates.get(record.id))?.order ?? 0;
       }
       await table.put(data);
     }
@@ -449,11 +451,13 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       for (const template of templates) await this.db.templates.update(template.id, { archivedAt: now });
       const library = await this.db.exercises.toArray();
       for (const [order, day] of PROGRAM.entries()) {
+        const prior = templates.find((template) => template.presetDay === order);
         const exercises: TemplateExercise[] = [];
         for (const [position, assignment] of day.exercises.entries()) {
           const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === assignment.name.toLowerCase());
           // Reuse a single exact match. Ambiguous legacy definitions remain untouched.
-          let exercise = matches.length === 1 ? matches[0] : undefined;
+          const priorId = prior?.exercises.find((row) => row.name === assignment.name)?.exerciseId;
+          let exercise = library.find((row) => row.id === priorId && !row.archivedAt) ?? (matches.length === 1 ? matches[0] : undefined);
           if (!exercise) {
             exercise = { id: newId(), name: assignment.name, createdAt: now };
             library.push(exercise); await this.db.exercises.add(exercise);
@@ -461,7 +465,6 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
           exercises.push({ exerciseId: exercise.id, assignmentId: newId(), name: assignment.name,
             targetSets: assignment.targetSets, targetRepRange: assignment.targetRepRange, order: position });
         }
-        const prior = templates.find((template) => template.presetDay === order);
         await this.db.templates.put({ id: prior?.id ?? newId(), name: day.name, order, estimatedMinutes: day.estimatedMinutes,
           exercises, presetDay: order, createdAt: prior?.createdAt ?? now, updatedAt: now });
       }
