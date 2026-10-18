@@ -25,3 +25,7 @@ pnpm-debug.log*
 
 # test coverage
 coverage
+
+# Browser test artifacts
+playwright-report/
+test-results/
