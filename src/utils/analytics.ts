@@ -27,7 +27,7 @@ export function customRange(start: string, end: string): DateRange | null {
 }
 export const inRange = (timestamp: number, range: DateRange) => Number.isFinite(timestamp) && timestamp >= range.from && timestamp < range.to;
 
-export function summarizeGym(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: Exercise[], range: DateRange,
+function selectGym(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: Exercise[], range: DateRange,
   filters: { exerciseId?: string; muscle?: string; templateId?: string } = {}) {
   const library = new Map(exercises.map((exercise) => [exercise.id, exercise]));
   const completed = sessions.filter((session) => session.status === 'completed' && inRange(session.date, range) && (!filters.templateId || session.templateId === filters.templateId));
@@ -35,6 +35,12 @@ export function summarizeGym(sessions: WorkoutSession[], logs: ExerciseLog[], ex
   const sets = logs.filter((log) => ids.has(log.sessionId) && !log.isWarmup &&
     (!filters.exerciseId || log.exerciseId === filters.exerciseId) &&
     (!filters.muscle || (library.get(log.exerciseId)?.primaryMuscle?.trim() || 'Unspecified') === filters.muscle));
+  return { library, completed, sets };
+}
+
+export function summarizeGym(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: Exercise[], range: DateRange,
+  filters: { exerciseId?: string; muscle?: string; templateId?: string } = {}) {
+  const { library, completed, sets } = selectGym(sessions, logs, exercises, range, filters);
   const byMuscle = new Map<string, number>();
   const byExercise = new Map<string, { id: string; name: string; sets: number }>();
   for (const set of sets) {
@@ -45,6 +51,45 @@ export function summarizeGym(sessions: WorkoutSession[], logs: ExerciseLog[], ex
   }
   const sessionCount = filters.exerciseId || filters.muscle ? new Set(sets.map((set) => set.sessionId)).size : completed.length;
   return { sessions: sessionCount, workingSets: sets.length, byMuscle: [...byMuscle].sort(([a], [b]) => a.localeCompare(b)), byExercise: [...byExercise.values()].sort((a, b) => a.name.localeCompare(b.name)) };
+}
+
+export interface ActivityPoint {
+  date: number;
+  through: number;
+  workouts: number;
+  workingSets: number;
+  distanceKm: number;
+}
+
+/** At most 31 calendar buckets, including empty days. Gym filters never filter runs. */
+export function activityTimeline(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: Exercise[], runs: Run[], range: DateRange,
+  filters: { exerciseId?: string; muscle?: string; templateId?: string } = {}): ActivityPoint[] {
+  if (!Number.isFinite(range.from) || !Number.isFinite(range.to) || range.to <= range.from) return [];
+  const calendarDay = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000;
+  };
+  const firstDay = calendarDay(range.from);
+  const days = calendarDay(range.to - 1) - firstDay + 1;
+  const step = Math.max(1, Math.ceil(days / 31));
+  const points: ActivityPoint[] = [];
+  for (let day = 0; day < days; day += step) {
+    const date = new Date(range.from); date.setDate(date.getDate() + day);
+    const next = new Date(date); next.setDate(next.getDate() + step);
+    points.push({ date: date.getTime(), through: Math.min(next.getTime(), range.to) - 1, workouts: 0, workingSets: 0, distanceKm: 0 });
+  }
+  const pointFor = (timestamp: number) => points[Math.floor((calendarDay(timestamp) - firstDay) / step)];
+  const { completed, sets } = selectGym(sessions, logs, exercises, range, filters);
+  const matchingIds = new Set(sets.map((set) => set.sessionId));
+  const dateBySession = new Map(completed.map((session) => [session.id, session.date]));
+  for (const session of completed) {
+    if (!filters.exerciseId && !filters.muscle || matchingIds.has(session.id)) pointFor(session.date).workouts++;
+  }
+  for (const set of sets) pointFor(dateBySession.get(set.sessionId)!).workingSets++;
+  for (const run of runs) {
+    if (inRange(run.date, range) && Number.isFinite(run.distanceKm) && run.distanceKm > 0) pointFor(run.date).distanceKm += run.distanceKm;
+  }
+  return points;
 }
 export function summarizeRuns(runs: Run[], range: DateRange) {
   const selected = runs.filter((run) => inRange(run.date, range));
