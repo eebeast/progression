@@ -22,6 +22,9 @@ test('Today records activity, Dashboard charts it, and Logbook filters the recor
   await expect(page.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
   await expect(page.getByRole('table', { name: 'Body weight recorded values' })).toContainText('75.5 kg');
   await expect(page.getByRole('region', { name: 'Activity streaks' }).getByRole('region', { name: 'Activity calendar' })).toBeVisible();
+  const calendarDay = page.getByRole('region', { name: 'Activity calendar' }).getByRole('button', { pressed: true });
+  const desktopDay = await calendarDay.boundingBox();
+  expect(Math.abs(desktopDay!.width - desktopDay!.height)).toBeLessThan(1);
   await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Log run', exact: true })).toHaveCount(0);
   await expect(page.getByText('View activity overview', { exact: true })).toHaveCount(0);
@@ -41,5 +44,6 @@ test('Today records activity, Dashboard charts it, and Logbook filters the recor
   await expect(page.getByRole('link', { name: 'Dashboard', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(async () => { const day = await calendarDay.boundingBox(); return Math.abs(day!.width - day!.height); }).toBeLessThan(1);
   await page.screenshot({ path: test.info().outputPath('activity-merged-mobile.png'), fullPage: true, animations: 'disabled' });
 });

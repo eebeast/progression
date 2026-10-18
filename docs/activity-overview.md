@@ -18,6 +18,8 @@ The combined calendar highlights workout/run dates; selecting a date exposes a
 **View records** link to `/history?date=YYYY-MM-DD`. Logbook preserves that date
 while switching record types and offers **Show all dates** to clear it. The calendar
 and streak remain available while correcting invalid chart dates.
+The embedded calendar is capped at 336px wide and uses square, responsive date
+cells so the month grid keeps its proportions on desktop and mobile.
 
 ## Categories
 

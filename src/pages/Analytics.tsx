@@ -90,7 +90,7 @@ export default function Analytics() {
         </div>}
         <div className={cn('flex flex-wrap items-center justify-between gap-3', showFilters && 'mt-3')}><p className="text-xs text-muted-foreground">{filterCount ? `${filterCount} gym ${filterCount === 1 ? 'filter' : 'filters'} applied. ` : ''}Filters apply to workout activity. Historical category loads always include all exercises. Running and body weight show all records in this period.</p>{filterCount > 0 && <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setExercise(''); setMuscle(''); setTemplate(''); }}>Clear filters</button>}</div>
       </section>}
-      <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} calendar={<section aria-label="Activity calendar">
+      <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} calendar={<section aria-label="Activity calendar" className="mx-auto w-full max-w-[336px]">
         <Calendar embedded activeKeys={new Set([...sessions.map((session) => dateKey(session.date)), ...runs.map((run) => dateKey(run.date))])} selectedKey={selectedDate} onSelectDay={setSelectedDate} />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground"><span>{dateLabel(keyToLocalMidnight(selectedDate))} · {selectedWorkouts} {selectedWorkouts === 1 ? 'workout' : 'workouts'} · {selectedRuns} {selectedRuns === 1 ? 'run' : 'runs'}</span><Link className="font-semibold text-primary" to={`/history?date=${selectedDate}`}>View records</Link></div>
       </section>} />
