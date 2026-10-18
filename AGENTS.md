@@ -81,7 +81,7 @@ concurrent set numbering, and session snapshots.
   dedup by weight×reps keeping the most recent date). Entry points: exercise title in
   `Workout`, group headings in `HistoryDetail`, and — when `settings.showExerciseLibrary`
   is on — an "Exercises" nav tab (`AppShell`) → `/exercises` (`pages/Exercises.tsx`).
-- **Progress chart** — the app's one chart, on `ExerciseHistory` below the PR:
+- **Exercise progress chart** — on `ExerciseHistory` below the PR:
   `components/ExerciseProgressChart.tsx` (recharts `LineChart`, ~180px, `var(--primary)`
   line/dots, no gridlines/legend), fed by `getSessionProgress(logs, dateBySession)` in
   `utils/personalRecords.ts` — one point per completed session (warm-ups excluded,
@@ -89,6 +89,14 @@ concurrent set numbering, and session snapshots.
   between top-set weight and working-set count. Facts only: **no** trend/projection/average;
   renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
   `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
+- **Activity overview** — `/analytics` uses same-theme cards and Recharts. See
+  `docs/activity-overview.md`. Categories are Chest/Legs/Back/Core/Arms/Compound;
+  `Exercise.category?` wins over legacy labels/configured names. New exercise UI
+  requires a category. No Unspecified category is displayed. Workout activity has
+  week/month/year/custom ranges; category load and individual set-load graphs use
+  all completed history independently of date controls. Warm-ups are excluded.
+  Streaks default to calendar weeks and derive current/best counts from completed
+  workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
   `components/ShareButton.tsx` (`navigator.share`, else clipboard). Used in `Summary`
   and `HistoryDetail`.
