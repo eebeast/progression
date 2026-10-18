@@ -45,9 +45,18 @@ test('activity dashboard charts are readable on desktop, mobile and dark themes'
   await page.getByRole('button', { name: 'This year', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Workouts recorded values' }).getByRole('row')).toHaveCount(13);
   await page.getByRole('button', { name: 'This week', exact: true }).click();
+  const contentPane = page.locator('main').locator('..');
+  const frameBefore = await contentPane.boundingBox();
   await page.getByRole('group', { name: 'Exercise categories' }).getByRole('button', { name: /Chest/ }).click();
   await expect(page.getByRole('region', { name: 'Chest exercise records' })).toContainText('Barbell Bench Press');
   await expect(page.getByRole('table', { name: 'Set load recorded values' })).toContainText('40 kg');
+  await contentPane.evaluate((element) => { element.scrollTop = 500; });
+  await expect.poll(() => contentPane.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => contentPane.boundingBox()).toEqual(frameBefore);
+  const header = await page.locator('main header').first().boundingBox();
+  expect(Math.abs(header!.y - frameBefore!.y)).toBeLessThanOrEqual(2);
+  await page.screenshot({ path: test.info().outputPath('activity-scrolled-desktop.png'), animations: 'disabled' });
+  await contentPane.evaluate((element) => { element.scrollTop = 0; });
   await page.getByRole('button', { name: 'Run km', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Running distance recorded values' })).toContainText('7.5 km');
   await page.setViewportSize({ width: 390, height: 844 });

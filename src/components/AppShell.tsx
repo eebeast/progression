@@ -69,7 +69,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Content area — inset, rounded, self-scrolling pane on desktop. */}
       <div
         className={cn(
-          'flex min-w-0 flex-1 flex-col',
+          // Contain absolute chart data tables so they cannot extend the document scroll area.
+          'relative flex min-w-0 flex-1 flex-col',
           hideNav
             ? 'min-h-[100dvh]'
             : 'min-h-[100dvh] md:h-full md:min-h-0 md:overflow-y-auto md:rounded-2xl md:border md:border-border',

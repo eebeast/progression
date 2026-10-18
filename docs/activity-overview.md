@@ -41,6 +41,10 @@ existing convention: values display in the active unit without conversion. Chart
 values also have accessible data tables and tooltips. Category buttons provide a
 keyboard-accessible alternative to clicking chart bars.
 
+On desktop, the rounded frame and sidebar stay fixed while the inner content pane
+scrolls. Keep the pane positioned relatively so absolutely positioned chart data
+tables cannot enlarge the outer document or move the frame during category scrolling.
+
 ## Streaks
 
 The default is consecutive active weeks, starting Monday. A completed workout or
