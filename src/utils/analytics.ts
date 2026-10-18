@@ -1,4 +1,5 @@
 import type { Exercise, ExerciseLog, Run, WorkoutSession } from '@/types';
+import { muscleGroup } from './muscleGroups';
 
 export interface DateRange { from: number; to: number }
 /** Local calendar boundaries; next-day construction handles 23/25-hour DST days. */
@@ -34,7 +35,7 @@ function selectGym(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: E
   const ids = new Set(completed.map((session) => session.id));
   const sets = logs.filter((log) => ids.has(log.sessionId) && !log.isWarmup &&
     (!filters.exerciseId || log.exerciseId === filters.exerciseId) &&
-    (!filters.muscle || (library.get(log.exerciseId)?.primaryMuscle?.trim() || 'Unspecified') === filters.muscle));
+    (!filters.muscle || muscleGroup(library.get(log.exerciseId), log.exerciseName) === filters.muscle));
   return { library, completed, sets };
 }
 
@@ -44,7 +45,7 @@ export function summarizeGym(sessions: WorkoutSession[], logs: ExerciseLog[], ex
   const byMuscle = new Map<string, number>();
   const byExercise = new Map<string, { id: string; name: string; sets: number }>();
   for (const set of sets) {
-    const muscle = library.get(set.exerciseId)?.primaryMuscle?.trim() || 'Unspecified';
+    const muscle = muscleGroup(library.get(set.exerciseId), set.exerciseName);
     byMuscle.set(muscle, (byMuscle.get(muscle) ?? 0) + 1);
     const row = byExercise.get(set.exerciseId) ?? { id: set.exerciseId, name: library.get(set.exerciseId)?.name ?? set.exerciseName, sets: 0 };
     row.sets++; byExercise.set(set.exerciseId, row);

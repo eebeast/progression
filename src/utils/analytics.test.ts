@@ -50,4 +50,14 @@ describe('calendar analytics', () => {
     expect(points.reduce((sum, point) => sum + point.distanceKm, 0)).toBe(10);
     expect(activityTimeline([], [], [], [], { from: 1, to: 0 })).toEqual([]);
   });
+
+  it('groups saved muscle types and predefined categories consistently with filters', () => {
+    const sessions = [{ id: 's', status: 'completed', date: 1 }] as WorkoutSession[];
+    const exercises = [{ id: 'squat', name: 'Custom squat', primaryMuscle: 'Quads', createdAt: 0 }, { id: 'pull', name: 'Weighted Pull-ups', createdAt: 0 }];
+    const logs = [{ sessionId: 's', exerciseId: 'squat' }, { sessionId: 's', exerciseId: 'pull' }] as ExerciseLog[];
+    const range = { from: 0, to: 2 };
+    expect(summarizeGym(sessions, logs, exercises, range).byMuscle).toEqual([['Back', 1], ['Legs', 1]]);
+    expect(summarizeGym(sessions, logs, exercises, range, { muscle: 'Legs' }).workingSets).toBe(1);
+    expect(activityTimeline(sessions, logs, exercises, [], range, { muscle: 'Back' })[0].workingSets).toBe(1);
+  });
 });
