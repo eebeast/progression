@@ -143,7 +143,7 @@ interface BodyWeightRowProps {
 }
 
 /** A logged weight. Tap to edit inline or delete (same pattern as a set/run). */
-function BodyWeightRow({ entry, unit, onSave, onDelete }: BodyWeightRowProps) {
+export function BodyWeightRow({ entry, unit, onSave, onDelete }: BodyWeightRowProps) {
   const [editing, setEditing] = React.useState(false);
   const [key, setKey] = React.useState(dateKey(entry.date));
   const [weight, setWeight] = React.useState(entry.weight);
