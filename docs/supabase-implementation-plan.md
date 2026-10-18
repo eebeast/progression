@@ -1,6 +1,14 @@
 # Progression: Supabase implementation plan
 
-Status: ready for review before implementation.
+Status: implementation is in progress on `feat/supabase-offline-sync`.
+See `todo.md` for verified local work and remaining release gates.
+
+User interface refinement: preserve the original theme and simple day-specific
+exercise editor. The exact user-supplied four-day plan is predefined. Library
+management stays optional; optional analytics are accessed from Activity. Latest user
+feedback supersedes the timer tasks below: remove rest timer controls from workouts
+and plan editing, and remove the workout's add-exercise form. Exercises are edited in
+the day plan.
 
 This is the execution plan for the existing React/Vite application. It refines
 `progression-vert-implementation-plan.md` using the repository audit and the user's

@@ -50,3 +50,14 @@ Preserve legacy weight numbers and their active-unit semantics. Do not retrospec
 5. Preserve the old local database and downloadable backups throughout cutover. To roll back before cutover, keep using the local deployment. After cutover, export account data before reverting; a code rollback alone does not move cloud changes back into the original local database.
 
 Creating a free Supabase project is the next external setup step. Browser configuration needs only its project URL and public publishable key. Administrative/service-role keys must never enter the browser or repository.
+
+
+## Implementation refinement
+
+The local implementation uses private account-scoped JSON payload records plus
+receipts and an ordered change journal, rather than one remote SQL table per legacy
+entity. This preserves unknown legacy fields and keeps the browser repository
+adapter small. Authenticated RPCs validate revisions and same-owner references for
+an entire atomic group; direct browser table access is revoked and RLS is enabled.
+Full per-field legacy validation, a persisted migration journal and real-export
+reconciliation remain release gates. See `todo.md` for verification boundaries.

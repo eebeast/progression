@@ -7,7 +7,9 @@ you add features or change conventions.
 
 **Progression** — a local-first workout tracker PWA. React 18 + TypeScript + Vite 5,
 Tailwind 3, Dexie 4 / IndexedDB, React Router 6, lucide-react, recharts, vite-plugin-pwa.
-No backend, no auth, no network — all data lives in the browser's IndexedDB.
+Local-only mode uses IndexedDB. Optional Supabase configuration enables Google
+sign-in and account-scoped offline sync. See `docs/local-development.md` for setup;
+hosted verification and actual-backup reconciliation are still release gates.
 
 ## Non-negotiable design principle
 
@@ -65,6 +67,14 @@ New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at 
 `Workout` uses that snapshot, including an intentionally empty list; legacy sessions
 without it fall back to their current template. Never backfill historical prescriptions
 from a plan that may have changed. This optional field requires no schema bump.
+The default program is the user’s four-day Pull / Push / Legs + Abs / Mix plan.
+`installFourDayPlan` archives previous days rather than deleting them; `observeTemplates`
+hides archived days unless explicitly requested. Keep exercise entry as one plain name
+field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse unique
+exact exercise names internally. The workout screen shows the session's planned
+exercises without an add-exercise form. Rest timer controls are removed from workout
+and plan editing screens. Keep stored timer fields compatible with existing backups.
+
 Repository tests use `fake-indexeddb` and cover import/export, rollback, seeding,
 concurrent set numbering, and session snapshots.
 
@@ -127,7 +137,7 @@ concurrent set numbering, and session snapshots.
 ## Routes
 
 `/onboarding`, `/` (Dashboard), `/workout/:sessionId`, `/summary/:sessionId`,
-`/activity`, `/history`, `/history/:sessionId`, `/exercise/:exerciseId`, `/templates`,
+`/activity`, `/analytics`, `/history`, `/history/:sessionId`, `/exercise/:exerciseId`, `/templates`,
 `/templates/new`, `/templates/:templateId`, `/settings`. Defined in `src/App.tsx`.
 
 ## Conventions
@@ -179,9 +189,12 @@ not).
 **CI:** `.github/workflows/ci.yml` runs lint → typecheck → test (coverage) → build on every
 push/PR to `main`. Keep all green.
 
-**Known follow-up:** `buildWorkoutRecap` (`shareSummary.ts`) still renders `weight×reps`
-raw — it doesn't use `formatSetValue`, so `time`-metric and zero-weight sets read oddly in
-the shared recap. Align it with `SetRow`/`HistoryDetail` when convenient.
+**PWA:** production builds use prompt-based updates. Defer applying updates during
+active workouts or editing routes. Browser tests use the production preview server;
+Vite development mode does not establish offline/service-worker behavior.
+
+**Toolchain:** Node 22+ is required by the Supabase client. `npm run test:db` runs
+SQL tests against local Supabase/Colima; `npm run test:e2e` runs Chromium offline checks.
 
 ## Gotchas learned the hard way
 

@@ -1,41 +1,62 @@
-# Progression Vert implementation status
+# Progression implementation status
 
-This checklist tracks the work in
-[`progression-vert-implementation-plan.md`](./progression-vert-implementation-plan.md).
-Backend evaluation and storage decision requirements are detailed in
-[`progression-vert-storage-decisions.md`](./progression-vert-storage-decisions.md).
-Status reflects the implementation in this repository as of October 17, 2026.
+Updated October 18, 2026. Branch: `feat/supabase-offline-sync`.
+Execution specification: [Supabase plan](./supabase-implementation-plan.md).
+Setup and recovery: [local development](./local-development.md).
 
-Supabase and Google sign-in are now confirmed. Follow
-[`supabase-implementation-plan.md`](./supabase-implementation-plan.md) for execution
-stages, acceptance tests, setup and rollout. Implementation of those stages is pending.
-Installable PWA delivery is explicit in that plan: existing manifest/service-worker
-support will gain install guidance, safe update prompts and real-device offline checks.
+## Implemented locally
 
-## Status summary
+- [x] Repository/current-storage audit and comparison of Supabase, Firebase,
+  Cloudflare and Neon. Supabase free plan and Google sign-in are selected.
+- [x] Legacy backup validation, warnings, exact-record reconciliation utility and
+  SHA-256 source inspection utility. Transactional import/export and re-import tests.
+- [x] Session prescription snapshots, valid seed references and serialized set numbering.
+- [x] Account/project-specific databases and remounted UI scopes. Cached account
+  logging remains available when session refresh cannot reach the network. Explicit
+  sign-out locks local access even if the remote request fails.
+- [x] Additive v4 outbox/version/cursor/conflict stores, immutable operation IDs,
+  transactionally queued writes, parent dependencies and bounded staged imports.
+- [x] Private PostgreSQL records, RLS/grants, transactional push, replay receipts,
+  version conflicts, tombstones and serialized paginated pull. SQL authorization,
+  replay, rollback and account-isolation tests pass on local Supabase via Colima.
+- [x] Foreground retry/backoff with request timeouts, Web Locks where available,
+  acknowledgement handling, protected pending dependencies, late-response isolation
+  and explicit conflict resolution. Two-client repository simulations cover lost
+  responses, conflicting edits and deletion.
+- [x] Settings Google sign-in, sync status/retry, explicit local-history copy and
+  separately chosen preferences. Recovery backups retain both versions and can be
+  opened for local review without replaying a foreign outbox.
+- [x] Canonical exercise reuse, duplicate warnings, archive and explicit merge audit.
+- [x] Exact four-day Pull / Push / Legs + Abs / Mix preset. Existing days/history are
+  retained when applying it. Plain exercise-name entry without dropdowns; management
+  controls remain collapsed, following user feedback.
+- [x] Local save error handling and double-tap protection, repeated assignment IDs,
+  undo and recap formatting. The workout add-exercise form and rest timer controls
+  were removed following user feedback; exercises remain editable in the day plan.
+- [x] Optional factual weekly/monthly/custom activity summaries, exercise/plan/muscle
+  filters, running totals/pace and dated body weights. No estimates, trends or advice.
+- [x] PWA install guidance, offline-ready message, deferred update prompt, manifest
+  identity and explicit hosting route rewrites. Chromium production-build checks cover
+  offline browser restart and the simplified desktop plan/editor flow.
 
-- [x] **Task 1 — Audit the existing application:** Identified the React/Vite app, Dexie/IndexedDB repository seam, routes, local persistence, backup handling, and dependencies. A complete file-level architecture report and verification against the actual legacy export remain part of migration validation.
-- [ ] **Task 2 — Define canonical models and migration** *(in progress)*: Added a v1 legacy-backup parser that checks the backup shape and IDs, reports record counts, duplicate exercise names, malformed timestamps and unresolved references, and preserves original records without automatic merges. Settings now shows counts and warnings before replacing data. Tests cover backup parsing and validation. Still needed: inspect the real backup, reconcile all IDs and relationships, and test actual IndexedDB import/re-import and recovery.
-- [ ] **Task 3 — Refactor persistence behind repositories:** Keep all UI persistence behind `WorkoutRepository`; add/verify versioned local schema migration, preserve current functionality and backup handling, and add repository transaction/persistence tests.
-- [ ] **Task 4 — Implement authentication and cloud storage:** Supabase free plan and Google sign-in selected. Implement schema migrations, authorization/ownership policies, account setup and isolation tests. Hosted infrastructure is not configured yet.
-- [ ] **Task 5 — Build offline sync:** Implement the persistent outbox, stable operation/entity IDs, idempotent writes, acknowledgements, retries, pull cursors, tombstones, conflict handling, account partitioning and visible sync status. Verify offline restart/reconnect, concurrent edits and account switching.
-- [ ] **Task 6 — Build reusable exercise and plan management:** Use canonical exercise IDs across plans, support custom exercises, plan-specific prescriptions, duplicate warnings, explicit validated merges and archive semantics that preserve history.
-- [ ] **Task 7 — Improve phone workout logging:** Add planned exercise preloading, faster set entry, previous-session values, rest timer, undo and offline run/body-weight logging with sync status.
-- [ ] **Task 8 — Build dashboard and analytics:** Add shared tested gym/running calculations and weekly/monthly/custom summaries, exercise progression, muscle-group volume, running metrics and body-weight views. Follow the repository's facts-only principle: do not implement estimates, goals, trends or advice without an explicit product-principle change.
-- [ ] **Task 9 — Verify, migrate and release:** Complete migration reconciliation, sync and account-isolation tests, analytics verification, responsive checks, and recovery/rollback documentation before cutover or removal of legacy storage.
+## Remaining release gates
 
-## Implementation notes
-
-- Local-foundation follow-up: new sessions snapshot plan exercises; set numbering is
-  allocated transactionally; exports use a consistent read transaction; seeding with
-  an existing exercise library now retains valid references. Repository tests cover
-  re-import, rollback, snapshots, concurrent writes and seed integrity. Workout page
-  regression tests cover snapshots and legacy fallback.
-- See `current-storage-audit.md` and `storage-architecture-decision.md` for the audit,
-  provider comparison and remaining rollout gates. Google sign-in is the user's
-  preference; Supabase is selected and provider integration is pending implementation.
-
-- No new repository was needed; work is in the existing application.
-- Supabase free plan is selected; paid infrastructure is not authorized. No hosted project is configured yet.
-- The migration parser and Settings confirmation are implemented in `src/storage/legacyBackup.ts`, `src/storage/dexie/DexieRepository.ts`, and `src/pages/Settings.tsx`.
-- Verification performed for the implemented migration-inspection slice: TypeScript check, production build, full 94-test suite before the final focused test was added, and all 5 focused migration tests. Lint completed with warnings, including pre-existing repository warnings.
+- [ ] Obtain the actual personal legacy export, checksum it privately, inspect all
+  irregular records and reconcile every ID/value/reference against the destination.
+  Approximate counts in the original spec are not verification evidence.
+- [ ] Persist a dedicated migration/reconciliation journal and implement repair of
+  unresolved legacy references before any production cutover. Current import warnings
+  and backup utilities preserve the source but do not constitute a completed migration.
+- [ ] Configure a hosted free Supabase project and Google OAuth. Verify real consent,
+  callback, expired authentication and account switching on phone and laptop.
+- [ ] Run genuine two-browser synchronization against the real RPC transport, including
+  simultaneous writes, interrupted migration, logout during a request and long offline gaps.
+  In-memory transport tests and separate SQL tests are not a substitute.
+- [ ] Validate installed Android/iOS behavior, OAuth returns across browser contexts,
+  service-worker upgrade from the previous auto-update release, and drafts in other tabs.
+- [ ] Complete full runtime validation/quarantine for imperfect legacy payloads and
+  independently verify analytics against the actual export (including unit ambiguity).
+- [ ] Review free-plan capacity and journal/receipt retention before long-term use;
+  do not prune offline-client recovery data or upgrade a paid plan automatically.
+- [ ] Perform controlled rollout with a fresh source backup and recovery rehearsal.
+  No hosted deployment, production cutover or legacy deletion has occurred.
