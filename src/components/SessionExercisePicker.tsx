@@ -28,8 +28,8 @@ export function SessionExercisePicker({ sessionId, onAdded }: { sessionId: strin
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Exercise could not be added.'); }
     finally { setBusy(false); }
   };
-  return <details className="rounded-xl border border-border p-3">
-    <summary className="cursor-pointer text-sm font-medium">Add exercise to this workout</summary>
+  return <section aria-label="Add exercise to this workout" className="rounded-xl border border-border bg-card p-3">
+    <h2 className="text-sm font-medium">Add exercise to this workout</h2>
     <div className="mt-3 flex flex-col gap-3">
       <label className="text-sm">Exercise name<Input autoComplete="off" value={name} onChange={(e) => {
         const value = e.target.value;
@@ -49,5 +49,5 @@ export function SessionExercisePicker({ sessionId, onAdded }: { sessionId: strin
       <Button disabled={busy || (!selected && !name.trim()) || (duplicate && !distinct) || !Number.isFinite(sets)} onClick={add}>Add to workout</Button>
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </div>
-  </details>;
+  </section>;
 }

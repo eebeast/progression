@@ -250,7 +250,6 @@ export default function TemplateEditor() {
                 </div>
               </div>
 
-              <details className="mt-3 text-sm text-muted-foreground"><summary className="cursor-pointer">Rest timer</summary><label className="mt-2 flex flex-col gap-1 text-sm">Rest seconds (optional)<Input type="number" min={0} step={5} value={r.restSeconds ?? ''} onChange={(e) => updateRow(r.key, { restSeconds: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value)) })} /></label></details>
               <div className="mt-3 flex items-center justify-end gap-1">
                 <button
                   type="button"

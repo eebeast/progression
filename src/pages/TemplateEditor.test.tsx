@@ -20,6 +20,7 @@ describe('plan exercise identity', () => {
     </RepositoryProvider></MemoryRouter>);
     await screen.findByDisplayValue('Legs');
     expect(container.querySelector('select, datalist, input[list]')).toBeNull();
+    expect(screen.queryByText('Rest timer')).not.toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Exercise name 1' })).toHaveAttribute('autocomplete', 'off');
     await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
     expect(updateTemplate).toHaveBeenCalledWith('plan', expect.objectContaining({ exercises: [expect.objectContaining({ exerciseId: 'original', assignmentId: 'assignment' })] }));

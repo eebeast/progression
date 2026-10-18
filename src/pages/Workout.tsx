@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useCloud } from '@/auth/CloudProvider';
-import { RestTimer } from '@/components/RestTimer';
 import { SessionExercisePicker } from '@/components/SessionExercisePicker';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check, SkipForward, Flag } from 'lucide-react';
@@ -366,7 +365,6 @@ export default function Workout() {
             </div>
           )}
 
-          <RestTimer key={current.assignmentId ?? current.exerciseId} endsAt={session.restEndsAt} initialSeconds={current.restSeconds} onChange={(value) => repo.setRestTimer(sessionId, value)} />
           {session.exercises && <SessionExercisePicker sessionId={sessionId} onAdded={() => setIndex(exercises.length)} />}
           {allLogs.length > 0 && <Button variant="ghost" disabled={saving} onClick={undoLastSet}>Undo last saved set</Button>}
           <div className="flex-1" />

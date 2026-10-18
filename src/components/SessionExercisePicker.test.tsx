@@ -20,8 +20,8 @@ function setup() {
 
 it('uses plain name entry and reuses an exact existing exercise', async () => {
   const { container, repo, onAdded, user } = setup();
-  await user.click(screen.getByText('Add exercise to this workout'));
-  expect(container.querySelector('select, datalist, input[list]')).toBeNull();
+  expect(screen.getByRole('textbox', { name: 'Exercise name' })).toBeVisible();
+  expect(container.querySelector('details, summary, select, datalist, input[list]')).toBeNull();
   await user.type(screen.getByRole('textbox', { name: 'Exercise name' }), 'Squat');
   await user.click(screen.getByRole('button', { name: 'Add to workout' }));
   expect(repo.createExercise).not.toHaveBeenCalled();
@@ -32,7 +32,6 @@ it('uses plain name entry and reuses an exact existing exercise', async () => {
 it('keeps a newly created identity when saving to the workout fails', async () => {
   const { repo, user } = setup();
   repo.addSessionExercise.mockRejectedValueOnce(new Error('Save failed'));
-  await user.click(screen.getByText('Add exercise to this workout'));
   await user.type(screen.getByRole('textbox', { name: 'Exercise name' }), 'Plank');
   await user.click(screen.getByRole('button', { name: 'Time' }));
   await user.click(screen.getByRole('button', { name: 'Add to workout' }));
