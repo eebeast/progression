@@ -8,6 +8,21 @@ it('gives every predefined movement a display group', () => {
   }
 });
 
+// Original shipped program: these records predate explicit category metadata.
+it.each([
+  ['Bench Press', 'Chest'], ['Incline DB Press', 'Chest'],
+  ['Overhead Press', 'Compound'], ['Lateral Raise', 'Arms'],
+  ['Skullcrusher', 'Arms'], ['Triceps Pushdown', 'Arms'],
+  ['Deadlift', 'Compound'], ['Pull-up', 'Back'], ['Barbell Row', 'Back'],
+  ['Face Pull', 'Back'], ['Barbell Curl', 'Arms'], ['Hammer Curl', 'Arms'],
+  ['Squat', 'Legs'], ['Romanian Deadlift', 'Compound'], ['Leg Press', 'Legs'],
+  ['Leg Curl', 'Legs'], ['Calf Raise', 'Legs'],
+  ['Ab Wheel Rollouts', 'Core'], ['Ab Rollout', 'Core'], ['Situp', 'Core'],
+])('categorizes original or legacy movement %s as %s without metadata', (name, category) => {
+  expect(muscleGroup({ id: 'legacy', name, createdAt: 0 })).toBe(category);
+  expect(muscleGroup(undefined, name)).toBe(category);
+});
+
 it.each([
   ['Barbell Curl', 'Arms'], ['Dumbell Curl', 'Arms'], ['Dumbbell Biceps Curl', 'Arms'],
   ['Triceps Pushdown', 'Arms'], ['Tricep Extension', 'Arms'], ['Tricepes Pushdown', 'Arms'],

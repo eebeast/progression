@@ -151,3 +151,34 @@ it('opens the full category with all configured exercises despite an active exer
   expect(within(records).getAllByRole('table', { name: 'Set load recorded values' })).toHaveLength(3);
   expect(within(records).getByRole('heading', { name: 'Hammer Curl' })).toBeVisible();
 });
+
+it('renders every legacy back, legs and core exercise graph with its original sets', async () => {
+  const date = new Date(2023, 5, 1).getTime();
+  const groups = [
+    { category: 'Back', names: ['Pull-up', 'Face Pull', 'Barbell Row'] },
+    { category: 'Legs', names: ['Leg Press', 'Leg Curl', 'Calf Raise'] },
+    { category: 'Core', names: ['Ab Wheel Rollouts', 'Situp', 'Hanging Knee Raise'] },
+  ];
+  const names = groups.flatMap((group) => group.names);
+  const user = setup({
+    observeExercises: () => of(names.map((name) => ({ id: name, name, createdAt: date }))),
+    observeCompletedSessions: () => of([{ id: 'legacy', date, status: 'completed' }] as WorkoutSession[]),
+    observeAllLogs: () => of(names.flatMap((exerciseName) => [0, 10].map((weight, index) => ({
+      id: `${exerciseName}-${index}`, sessionId: 'legacy', exerciseId: exerciseName, exerciseName,
+      weight, reps: 8, setNumber: index + 1, timestamp: date + index,
+    }))) as ExerciseLog[]),
+  });
+  await user.click(await screen.findByRole('button', { name: 'This year' }));
+  for (const { category, names: exercises } of groups) {
+    await user.click(within(screen.getByRole('group', { name: 'Exercise categories' })).getByRole('button', { name: new RegExp(category) }));
+    const records = screen.getByRole('region', { name: `${category} exercise records` });
+    for (const name of exercises) expect(within(records).getByRole('link', { name })).toHaveAttribute('href', `/exercise/${name}`);
+    const tables = within(records).getAllByRole('table', { name: 'Set load recorded values' });
+    expect(tables).toHaveLength(exercises.length);
+    for (const table of tables) {
+      expect(within(table).getAllByRole('row')).toHaveLength(3);
+      expect(table).toHaveTextContent('0 kg');
+      expect(table).toHaveTextContent('10 kg');
+    }
+  }
+});

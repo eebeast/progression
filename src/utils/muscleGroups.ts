@@ -12,9 +12,12 @@ export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = 
   { name: 'Barbell Squat', category: 'Legs' },
   { name: 'Squat', category: 'Legs' },
   { name: 'Dumbbell Lunges', category: 'Legs' },
+  { name: 'Leg Press', category: 'Legs' },
+  { name: 'Leg Curl', category: 'Legs' },
   { name: 'Standing Calf Raises', category: 'Legs' },
   { name: 'Weighted Pull-ups', category: 'Back' },
   { name: 'Pull-ups', category: 'Back' },
+  { name: 'Face Pull', category: 'Back' },
   { name: 'Barbell Bent-over Row', category: 'Back' },
   { name: 'Barbell Row', category: 'Back' },
   { name: 'One-arm Dumbbell Row', category: 'Back' },
@@ -55,6 +58,15 @@ export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = 
 const normalize = (name: string) => name.trim().toLowerCase().replace(/[-\s]+/g, ' ')
   .replace(/\bdumbell\b/g, 'dumbbell').replace(/\btricep(?:es)?\b/g, 'triceps').replace(/\bbicep\b/g, 'biceps');
 const aliases: Record<string, string> = {
+  // Original seeded names must still resolve after the catalog was expanded.
+  'incline db press': 'incline dumbbell press', 'overhead press': 'standing overhead press',
+  'lateral raise': 'dumbbell lateral raise',
+  'pull up': 'pull ups', pullup: 'pull ups', pullups: 'pull ups',
+  'weighted pull up': 'weighted pull ups', 'face pulls': 'face pull',
+  'calf raise': 'standing calf raises', 'calf raises': 'standing calf raises',
+  'standing calf raise': 'standing calf raises',
+  skullcrusher: 'ez bar skull crushers', skullcrushers: 'ez bar skull crushers',
+  'skull crusher': 'ez bar skull crushers',
   'barbell biceps curl': 'barbell curl', 'barbell curls': 'barbell curl',
   'dumbbell biceps curl': 'dumbbell curl', 'dumbbell curls': 'dumbbell curl',
   'biceps curl': 'dumbbell curl', 'biceps curls': 'dumbbell curl',
@@ -64,9 +76,11 @@ const aliases: Record<string, string> = {
   'rope pushdown': 'rope triceps pushdown', 'triceps rope pushdown': 'rope triceps pushdown',
   'skull crushers': 'ez bar skull crushers',
   crunch: 'crunches', 'cable crunches': 'cable crunch', 'sit up': 'sit ups',
+  situp: 'sit ups', situps: 'sit ups',
   'leg raise': 'leg raises', 'hanging leg raise': 'hanging leg raises',
   'hanging knee raise': 'hanging knee raises', 'knee raises': 'hanging knee raises',
   'ab wheel': 'ab roller', 'ab wheel rollout': 'ab roller', 'ab rollouts': 'ab roller',
+  'ab wheel rollouts': 'ab roller', 'ab rollout': 'ab roller',
   'russian twists': 'russian twist', 'bicycle crunches': 'bicycle crunch', 'reverse crunches': 'reverse crunch',
 };
 /** Used for matching catalog display names only; actual exercise IDs are never merged. */

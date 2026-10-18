@@ -35,6 +35,12 @@ records; reading falls back to recognized saved muscle labels and configured nam
 Recognized legacy spellings (including dumbell/dumbbell and tricep/triceps) and common
 curl, triceps and core movements map to the same display categories. This does not
 merge their exercise IDs or change historical names. Explicit categories always win.
+Original program names are also covered: Pull-up and Face Pull map to Back;
+Leg Press, Leg Curl and Calf Raise to Legs; Incline DB Press to Chest;
+Lateral Raise and Skullcrusher to Arms; Overhead Press to Compound.
+Core aliases include Ab Wheel Rollouts, Ab Rollout and Situp. Keep the original
+program-name regression tests when extending the catalog: unrecognized legacy names
+otherwise disappear from category charts even though their records remain in Logbook.
 Unknown exercises are retained in history but do not
 create an Unspecified dashboard category. Categorize them in the exercise library.
 No schema version bump or destructive data migration is needed.
