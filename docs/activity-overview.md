@@ -1,6 +1,17 @@
-# Activity overview
+# Activity
 
-The dashboard at `/analytics` uses the existing card, typography and accent tokens.
+The unified dashboard at `/activity` uses the existing card, typography and accent
+tokens. It includes charts, streaks, calendar and editable run/body-weight history.
+The former `/analytics` URL redirects to `/activity` for existing bookmarks.
+
+## Recording activity
+
+Today (`/`) has **Add run** and **Add weight** buttons beside the workout entry flow.
+Each opens an inline form. Saves await local persistence, reject repeated clicks,
+and retain the entered values if a write fails. Activity recalls saved records and
+keeps inline editing/deletion; new entries are created on Today. Correcting invalid
+chart dates does not unmount the calendar/history or discard open edit drafts. There is one streak
+summary and one running summary on the merged screen.
 
 ## Categories
 

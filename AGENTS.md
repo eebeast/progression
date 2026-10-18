@@ -89,7 +89,8 @@ concurrent set numbering, and session snapshots.
   between top-set weight and working-set count. Facts only: **no** trend/projection/average;
   renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
   `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
-- **Activity overview** — `/analytics` uses same-theme cards and Recharts. See
+- **Activity** — `/activity` combines same-theme charts, streaks, calendar and
+  editable run/body-weight history. `/analytics` redirects there. See
   `docs/activity-overview.md`. Categories are Chest/Legs/Back/Core/Arms/Compound;
   `Exercise.category?` wins over legacy labels/configured names. New exercise UI
   requires a category. No Unspecified category is displayed. Workout activity has
@@ -106,7 +107,9 @@ concurrent set numbering, and session snapshots.
   containers and IDs, reports suspicious timestamps and unresolved references without
   rewriting source records, and feeds the Settings import confirmation before replacement.
 - **Body-weight log** — `bodyWeights` store + `observe/add/update/deleteBodyWeight`;
-  `components/BodyWeightSection.tsx` on the Activity page.
+  new entries use `TodayEntries` on Today; `BodyWeightSection` on Activity retains
+  edit/delete controls with creation hidden. `RunForm` and `BodyWeightForm` await
+  persistence, prevent repeated saves and retain failed drafts.
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping
   `SetRow`.

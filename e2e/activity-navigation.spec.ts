@@ -1,0 +1,34 @@
+import { test, expect } from '@playwright/test';
+
+test('Today records runs and weight while one Activity screen recalls and charts them', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Activity test');
+  await page.getByRole('button', { name: 'Get started' }).click();
+  await page.getByRole('button', { name: 'Add run', exact: true }).click();
+  await page.getByLabel('Distance (km)').fill('5');
+  await page.getByLabel('Minutes', { exact: true }).fill('25');
+  await page.getByRole('button', { name: 'Save run', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Run saved');
+  await page.getByRole('button', { name: 'Add weight', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Weight', exact: true }).fill('75.5');
+  await page.getByRole('button', { name: 'Save weight', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Body weight saved');
+  await page.screenshot({ path: test.info().outputPath('today-entries.png'), fullPage: true, animations: 'disabled' });
+  await page.getByRole('link', { name: 'Activity', exact: true }).click();
+  await expect(page).toHaveURL(/\/activity$/);
+  await expect(page.getByRole('region', { name: 'Activity over time' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Activity calendar' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recent runs' })).toContainText('5 km');
+  await expect(page.getByRole('region', { name: 'Latest body weight' })).toContainText('75.5');
+  await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Log run', exact: true })).toHaveCount(0);
+  await expect(page.getByText('View activity overview', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Activity streaks' })).toHaveCount(1);
+  await page.goto('/analytics');
+  await expect(page).toHaveURL(/\/activity$/);
+  await expect(page.getByRole('link', { name: 'Activity', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('activity-merged-mobile.png'), fullPage: true, animations: 'disabled' });
+});
