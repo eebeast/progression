@@ -8,6 +8,14 @@ it('gives every predefined movement a display group', () => {
   }
 });
 
+it.each([
+  ['Barbell Curl', 'Arms'], ['Dumbell Curl', 'Arms'], ['Dumbbell Biceps Curl', 'Arms'],
+  ['Triceps Pushdown', 'Arms'], ['Tricep Extension', 'Arms'], ['Tricepes Pushdown', 'Arms'],
+  ['Cable Crunch', 'Core'], ['Crunches', 'Core'], ['Hanging Leg Raises', 'Core'],
+])('recognizes legacy exercise name %s as %s', (name, category) => {
+  expect(muscleGroup({ id: 'legacy', name, createdAt: 0 })).toBe(category);
+});
+
 it('respects saved labels, groups known labels and leaves unknown custom movements unspecified', () => {
   expect(muscleGroup({ id: 'e', name: 'Weighted Pull-ups', primaryMuscle: ' Biceps ', createdAt: 0 })).toBe('Arms');
   expect(muscleGroup({ id: 'e', name: 'Custom', primaryMuscle: 'Upper body', createdAt: 0 })).toBe('Unspecified');

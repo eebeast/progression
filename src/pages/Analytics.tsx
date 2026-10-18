@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { activityTimeline, categoryActivity, calendarRange, customRange, dateInputValue, inRange, summarizeGym, summarizeRuns } from '@/utils/analytics';
 import { formatDuration } from '@/utils/format';
 import { formatPace } from '@/utils/runMetrics';
-import { EXERCISE_CATEGORIES, muscleGroup } from '@/utils/muscleGroups';
+import { EXERCISE_CATEGORIES } from '@/utils/muscleGroups';
 import { activityStreaks, type StreakPeriod } from '@/utils/activityStreaks';
 
 const panel = 'min-w-0 rounded-xl border border-border bg-card p-5';
@@ -60,9 +60,8 @@ export default function Analytics() {
   const metricLabel = { workouts: 'Workouts', distanceKm: 'Running distance' }[metric];
   const chartHasData = timeline.some((point) => point[metric] > 0);
   const categories = range ? categoryActivity(sessions, logs, exercises, range, filters) : [];
-  const recordSessions = sessions.filter((session) => session.status === 'completed' && (!templateId || session.templateId === templateId));
-  const historicalCategories = categoryActivity(sessions, logs, exercises, { from: -Infinity, to: Infinity }, filters);
-  const recordLogs = logs.filter((log) => (!exerciseId || log.exerciseId === exerciseId) && (!muscle || muscleGroup(exercises.find((exercise) => exercise.id === log.exerciseId), log.exerciseName) === muscle));
+  const recordSessions = sessions.filter((session) => session.status === 'completed');
+  const historicalCategories = categoryActivity(sessions, logs, exercises, { from: -Infinity, to: Infinity });
   const selectClass = 'mt-1.5 w-full rounded-lg border border-input bg-background p-2.5 text-foreground';
   return <div>
     <PageHeader title="Activity overview" left={<Link to="/activity" aria-label="Back to Activity" className="rounded-full p-2 text-muted-foreground hover:bg-muted"><ArrowLeft className="h-5 w-5" /></Link>} />
@@ -85,7 +84,7 @@ export default function Analytics() {
           <label className="text-sm font-medium">Muscle group<select className={selectClass} value={muscle} onChange={(e) => setMuscle(e.target.value)}><option value="">All groups</option>{muscles.map((m) => <option key={m}>{m}</option>)}</select></label>
           <label className="text-sm font-medium">Plan<select className={selectClass} value={templateId} onChange={(e) => setTemplate(e.target.value)}><option value="">All plans</option>{[...new Map([...templates.map((t) => [t.id, t.name] as const), ...sessions.map((s) => [s.templateId, s.templateName] as const)]).entries()].map(([id, name]) => <option value={id} key={id}>{name}</option>)}</select></label>
         </div>}
-        <div className={cn('flex flex-wrap items-center justify-between gap-3', showFilters && 'mt-3')}><p className="text-xs text-muted-foreground">{filterCount ? `${filterCount} gym ${filterCount === 1 ? 'filter' : 'filters'} applied. ` : ''}Running and body weight always show all records in this period.</p>{filterCount > 0 && <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setExercise(''); setMuscle(''); setTemplate(''); }}>Clear filters</button>}</div>
+        <div className={cn('flex flex-wrap items-center justify-between gap-3', showFilters && 'mt-3')}><p className="text-xs text-muted-foreground">{filterCount ? `${filterCount} gym ${filterCount === 1 ? 'filter' : 'filters'} applied. ` : ''}Filters apply to workout activity. Historical category loads always include all exercises. Running and body weight show all records in this period.</p>{filterCount > 0 && <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setExercise(''); setMuscle(''); setTemplate(''); }}>Clear filters</button>}</div>
       </section>}
       {gym && running && <>
         <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} />
@@ -118,7 +117,7 @@ export default function Analytics() {
             <p className="mt-3 text-xs text-muted-foreground">Pace uses recorded time and distance from runs with both values.{running.incomplete > 0 && ` ${running.incomplete} ${running.incomplete === 1 ? 'run has' : 'runs have'} incomplete pace data.`}</p>
           </section>
           <section className={cn(panel, 'lg:col-span-2')} aria-label="Category activity">
-            <h2 className="font-semibold">Recorded load by category</h2><p className="mb-4 mt-1 text-xs text-muted-foreground">Heaviest logged set in each category · All history. Choose a category for every exercise’s set-by-set load graph.</p>
+            <h2 className="font-semibold">Recorded load by category</h2><p className="mb-4 mt-1 text-xs text-muted-foreground">Heaviest logged set in each category · All history and all exercises. Choose a category for every exercise’s set-by-set load graph.</p>
             <CategoryActivityChart unit={settings.unit} rows={historicalCategories} selected={selectedCategory} onSelect={setSelectedCategory} />
           </section>
           <section className={panel} aria-label="Body-weight history">
@@ -126,7 +125,7 @@ export default function Analytics() {
             {measurements.length ? <OverviewChart points={measurements.map((entry) => ({ date: entry.date, value: entry.weight }))} label="Body weight" unit={settings.unit} line /> : <EmptyChart>No body-weight entries in this period. Add a measurement in Activity.</EmptyChart>}
           </section>
         </div>
-        {selectedCategory && <div ref={recordsRef} className="scroll-mt-20"><CategoryRecords category={selectedCategory} exercises={exercises} sessions={recordSessions} logs={recordLogs} unit={settings.unit} /></div>}
+        {selectedCategory && <div ref={recordsRef} className="scroll-mt-20"><CategoryRecords category={selectedCategory} exercises={exercises} sessions={recordSessions} logs={logs} unit={settings.unit} /></div>}
         <Link to="/activity" className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-sm font-semibold hover:bg-muted/50">View or add activity<ChevronRight className="h-4 w-4 text-primary" /></Link>
       </>}
     </div>

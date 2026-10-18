@@ -6,7 +6,7 @@ import { RepositoryProvider } from '@/storage/RepositoryProvider';
 import { of, type WorkoutRepository } from '@/storage/repository';
 import { DEFAULT_SETTINGS } from '@/storage/defaults';
 import Analytics from './Analytics';
-import type { ExerciseLog, WorkoutSession } from '@/types';
+import type { Exercise, ExerciseLog, WorkoutSession } from '@/types';
 
 function setup(overrides: Partial<WorkoutRepository> = {}) {
   const now = Date.now();
@@ -112,4 +112,42 @@ it('keeps every historical load visible when the dashboard date period changes',
   await user.click(screen.getByRole('button', { name: 'This year' }));
   expect(within(screen.getByRole('table', { name: 'Set load recorded values' })).getAllByRole('row')).toHaveLength(4);
   expect(screen.queryByText('Unspecified')).not.toBeInTheDocument();
+});
+
+function legacyCategorySetup(explicitCategories = false) {
+  const date = new Date(2023, 5, 1).getTime();
+  const names = ['Barbell Curl', 'Dumbell Curl', 'Triceps Pushdown', 'Cable Crunch'];
+  return setup({
+    observeExercises: () => of(names.map((name, index) => ({ id: `legacy-${index}`, name, createdAt: date,
+      ...(explicitCategories ? { category: index === 3 ? 'Core' : 'Arms' } : {}),
+    })) as Exercise[]),
+    observeCompletedSessions: () => of([{ id: 'legacy-session', templateId: 't', templateName: 'Mixed', status: 'completed', date }] as WorkoutSession[]),
+    observeAllLogs: () => of(names.map((exerciseName, index) => ({ id: `log-${index}`, sessionId: 'legacy-session', exerciseId: `legacy-${index}`, exerciseName,
+      weight: [20, 25, 40, 15][index], reps: 10, setNumber: 1, timestamp: date + index,
+    })) as ExerciseLog[]),
+  });
+}
+
+it('shows historical curl, triceps and core records when Year is selected', async () => {
+  const user = legacyCategorySetup();
+  await user.click(await screen.findByRole('button', { name: 'This year' }));
+  const categories = screen.getByRole('group', { name: 'Exercise categories' });
+  expect(within(categories).getByRole('button', { name: /Arms/ })).toHaveTextContent('40 kg');
+  expect(within(categories).getByRole('button', { name: /Core/ })).toHaveTextContent('15 kg');
+  await user.click(within(categories).getByRole('button', { name: /Arms/ }));
+  const records = screen.getByRole('region', { name: 'Arms exercise records' });
+  for (const name of ['Barbell Curl', 'Dumbell Curl', 'Triceps Pushdown']) expect(within(records).getByRole('link', { name })).toBeVisible();
+  expect(within(records).getAllByRole('table', { name: 'Set load recorded values' })).toHaveLength(3);
+});
+
+it('opens the full category with all configured exercises despite an active exercise filter', async () => {
+  const user = legacyCategorySetup(true);
+  await user.click(await screen.findByRole('button', { name: 'Gym filters' }));
+  await user.selectOptions(screen.getByLabelText('Exercise'), 'legacy-0');
+  const categories = screen.getByRole('group', { name: 'Exercise categories' });
+  expect(within(categories).getByRole('button', { name: /Arms/ })).toHaveTextContent('40 kg');
+  await user.click(within(categories).getByRole('button', { name: /Arms/ }));
+  const records = screen.getByRole('region', { name: 'Arms exercise records' });
+  expect(within(records).getAllByRole('table', { name: 'Set load recorded values' })).toHaveLength(3);
+  expect(within(records).getByRole('heading', { name: 'Hammer Curl' })).toBeVisible();
 });

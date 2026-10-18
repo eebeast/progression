@@ -13,7 +13,10 @@ Compound. These are organizational categories, not muscle-activation estimates.
 New exercises require a category in the plan editor and exercise library. Familiar
 names receive an editable preselection. `Exercise.category` is optional for older
 records; reading falls back to recognized saved muscle labels and configured names.
-Explicit categories always win. Unknown exercises are retained in history but do not
+Recognized legacy spellings (including dumbell/dumbbell and tricep/triceps) and common
+curl, triceps and core movements map to the same display categories. This does not
+merge their exercise IDs or change historical names. Explicit categories always win.
+Unknown exercises are retained in history but do not
 create an Unspecified dashboard category. Categorize them in the exercise library.
 No schema version bump or destructive data migration is needed.
 
@@ -30,7 +33,10 @@ No schema version bump or destructive data migration is needed.
 - Body weight: the recorded measurements in the selected date period.
 
 Date controls apply to workout activity and body weight. Historical load charts are
-explicitly labeled all-history; gym filters still apply. Weight units follow the app's
+explicitly labeled all-history and include every exercise independently of gym filters.
+The category detail lists the full configured catalog alongside custom and historical
+exercises, with a separate graph for each exercise that has records. Unlogged exercises
+have an empty-state card. Weight units follow the app's
 existing convention: values display in the active unit without conversion. Chart
 values also have accessible data tables and tooltips. Category buttons provide a
 keyboard-accessible alternative to clicking chart bars.

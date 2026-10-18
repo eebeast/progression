@@ -94,7 +94,9 @@ concurrent set numbering, and session snapshots.
   `Exercise.category?` wins over legacy labels/configured names. New exercise UI
   requires a category. No Unspecified category is displayed. Workout activity has
   week/month/year/custom ranges; category load and individual set-load graphs use
-  all completed history independently of date controls. Warm-ups are excluded.
+  all completed history independently of date controls and gym filters. Category
+  details show the full configured catalog, custom exercises and legacy records.
+  Recognized legacy spelling aliases never merge IDs. Warm-ups are excluded.
   Streaks default to calendar weeks and derive current/best counts from completed
   workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
