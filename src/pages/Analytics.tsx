@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Dumbbell, Footprints, Layers, Scale, SlidersHorizontal } from 'lucide-react';
+import { ChevronRight, Dumbbell, Footprints, Layers, SlidersHorizontal } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/PageHeader';
 import { CategoryActivityChart } from '@/components/CategoryActivityChart';
 import { CategoryRecords } from '@/components/CategoryRecords';
 import { OverviewChart } from '@/components/OverviewChart';
+import { Calendar } from '@/components/Calendar';
+import { dateKey, todayKey, keyToLocalMidnight } from '@/utils/activity';
 import { ActivityStreakCard } from '@/components/ActivityStreakCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +32,7 @@ function EmptyChart({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-export default function Analytics({ children }: { children?: React.ReactNode }) {
+export default function Analytics() {
   const repo = useRepo(); const { settings } = useSettings();
   const sessions = useObservable(() => repo.observeCompletedSessions(), [repo]);
   const logs = useObservable(() => repo.observeAllLogs(), [repo]);
@@ -46,6 +48,7 @@ export default function Analytics({ children }: { children?: React.ReactNode }) 
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const recordsRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => { recordsRef.current?.scrollIntoView?.({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }, [selectedCategory]);
+  const [selectedDate, setSelectedDate] = React.useState(todayKey);
   const [streakPeriod, setStreakPeriod] = React.useState<StreakPeriod>('week');
   const range = period === 'custom' ? customRange(start, end) : calendarRange(period);
   if (!sessions || !logs || !exercises || !templates || !runs || !weights) return <p role="status" className="p-6">Loading recorded activity…</p>;
@@ -54,7 +57,6 @@ export default function Analytics({ children }: { children?: React.ReactNode }) 
   const running = range ? summarizeRuns(runs, range) : null;
   const timeline = range ? activityTimeline(sessions, logs, exercises, runs, range, filters) : [];
   const measurements = range ? weights.filter((entry) => inRange(entry.date, range)).sort((a, b) => a.date - b.date || a.createdAt - b.createdAt || a.id.localeCompare(b.id)) : [];
-  const latest = measurements.at(-1);
   const muscles = EXERCISE_CATEGORIES;
   const filterCount = [exerciseId, muscle, templateId].filter(Boolean).length;
   const metricLabel = { workouts: 'Workouts', distanceKm: 'Running distance' }[metric];
@@ -62,12 +64,14 @@ export default function Analytics({ children }: { children?: React.ReactNode }) 
   const categories = range ? categoryActivity(sessions, logs, exercises, range, filters) : [];
   const recordSessions = sessions.filter((session) => session.status === 'completed');
   const historicalCategories = categoryActivity(sessions, logs, exercises, { from: -Infinity, to: Infinity });
+  const selectedWorkouts = sessions.filter((session) => dateKey(session.date) === selectedDate).length;
+  const selectedRuns = runs.filter((run) => dateKey(run.date) === selectedDate).length;
   const selectClass = 'mt-1.5 w-full rounded-lg border border-input bg-background p-2.5 text-foreground';
   return <div>
-    <PageHeader title="Activity" />
+    <PageHeader title="Dashboard" />
     <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><h1 className="text-2xl font-bold sm:text-3xl">Your activity</h1><p className="mt-1 text-sm text-muted-foreground">{range ? `${dateLabel(range.from)} – ${dateLabel(range.to - 1)}, ${new Date(range.to - 1).getFullYear()}` : 'Choose a date range'}</p></div>
+        <div><h1 className="text-2xl font-bold sm:text-3xl">Training dashboard</h1><p className="mt-1 text-sm text-muted-foreground">{range ? `${dateLabel(range.from)} – ${dateLabel(range.to - 1)}, ${new Date(range.to - 1).getFullYear()}` : 'Choose a date range'}</p></div>
         <div role="group" aria-label="Period" className="grid grid-cols-2 rounded-xl bg-muted p-1 sm:flex">
           {([['week', 'This week'], ['month', 'This month'], ['year', 'This year'], ['custom', 'Custom']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={period === value} onClick={() => setPeriod(value)} className={pill(period === value)}>{label}</button>)}
         </div>
@@ -86,15 +90,17 @@ export default function Analytics({ children }: { children?: React.ReactNode }) 
         </div>}
         <div className={cn('flex flex-wrap items-center justify-between gap-3', showFilters && 'mt-3')}><p className="text-xs text-muted-foreground">{filterCount ? `${filterCount} gym ${filterCount === 1 ? 'filter' : 'filters'} applied. ` : ''}Filters apply to workout activity. Historical category loads always include all exercises. Running and body weight show all records in this period.</p>{filterCount > 0 && <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setExercise(''); setMuscle(''); setTemplate(''); }}>Clear filters</button>}</div>
       </section>}
+      <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} calendar={<section aria-label="Activity calendar">
+        <Calendar embedded activeKeys={new Set([...sessions.map((session) => dateKey(session.date)), ...runs.map((run) => dateKey(run.date))])} selectedKey={selectedDate} onSelectDay={setSelectedDate} />
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground"><span>{dateLabel(keyToLocalMidnight(selectedDate))} · {selectedWorkouts} {selectedWorkouts === 1 ? 'workout' : 'workouts'} · {selectedRuns} {selectedRuns === 1 ? 'run' : 'runs'}</span><Link className="font-semibold text-primary" to={`/history?date=${selectedDate}`}>View records</Link></div>
+      </section>} />
       {gym && running && <>
-        <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
             { label: 'Workouts', value: number(gym.sessions), detail: 'Completed in this period', icon: Dumbbell },
             { label: 'Categories trained', value: number(categories.filter((row) => row.workouts > 0).length), detail: 'From completed workouts', icon: Layers },
             { label: 'Running distance', value: number(running.distanceKm), suffix: 'km', detail: `${running.count} ${running.count === 1 ? 'run' : 'runs'} recorded`, icon: Footprints },
-            { label: 'Latest body weight', value: latest ? number(latest.weight) : '—', suffix: latest ? settings.unit : '', detail: latest ? `Logged ${dateLabel(latest.date)}` : 'No entries in this period', icon: Scale },
-          ].map(({ label, value, suffix, detail, icon: Icon }) => <section key={label} aria-label={label} className={cn(panel, 'p-4 sm:p-5')}>
+          ].map(({ label, value, suffix, detail, icon: Icon }) => <section key={label} aria-label={label} className={cn(panel, 'p-4 sm:p-5', label === 'Running distance' && 'col-span-2 sm:col-span-1')}>
             <div className="mb-5 flex items-center justify-between gap-2"><h2 className="text-sm font-medium text-muted-foreground">{label}</h2><Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /></div>
             <p className="text-3xl font-bold tabular-nums sm:text-4xl">{value}{suffix && <span className="ml-1.5 text-sm font-medium text-muted-foreground">{suffix}</span>}</p>
             <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
@@ -127,8 +133,7 @@ export default function Analytics({ children }: { children?: React.ReactNode }) 
         </div>
         {selectedCategory && <div ref={recordsRef} className="scroll-mt-20"><CategoryRecords category={selectedCategory} exercises={exercises} sessions={recordSessions} logs={logs} unit={settings.unit} /></div>}
       </>}
-      {children}
-      <Link to="/" className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-sm font-semibold hover:bg-muted/50">Add a run or body weight on Today<ChevronRight className="h-4 w-4 text-primary" /></Link>
+      <Link to="/history" className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-sm font-semibold hover:bg-muted/50">Open Logbook<ChevronRight className="h-4 w-4 text-primary" /></Link>
     </div>
   </div>;
 }

@@ -29,7 +29,7 @@ it('shows factual cards and applies optional filters only to gym records', async
   expect(await screen.findByRole('region', { name: 'Workouts' })).toHaveTextContent('2');
   expect(screen.getByRole('region', { name: 'Categories trained' })).toHaveTextContent('1');
   expect(screen.getByRole('region', { name: 'Running distance' })).toHaveTextContent('5km');
-  expect(screen.getByRole('region', { name: 'Latest body weight' })).toHaveTextContent('72kg');
+  expect(screen.getByRole('table', { name: 'Body weight recorded values' })).toHaveTextContent('72 kg');
   expect(screen.getByRole('region', { name: 'Running summary' })).toHaveTextContent('5:00 /km');
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Gym filters' }));

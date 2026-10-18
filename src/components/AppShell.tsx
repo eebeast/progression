@@ -13,8 +13,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const tabs = [
     { to: '/', label: 'Today', icon: Dumbbell, end: true },
-    { to: '/activity', label: 'Activity', icon: CalendarDays, end: false },
-    { to: '/history', label: 'History', icon: History, end: false },
+    { to: '/activity', label: 'Dashboard', icon: CalendarDays, end: false },
+    { to: '/history', label: 'Logbook', icon: History, end: false },
     ...(settings.showExerciseLibrary
       ? [{ to: '/exercises', label: 'Exercises', icon: ListChecks, end: false }]
       : []),
