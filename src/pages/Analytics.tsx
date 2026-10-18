@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Dumbbell, Footprints, Layers, Scale, SlidersHorizontal } from 'lucide-react';
+import { ChevronRight, Dumbbell, Footprints, Layers, Scale, SlidersHorizontal } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { useSettings } from '@/hooks/useSettings';
@@ -30,7 +30,7 @@ function EmptyChart({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-export default function Analytics() {
+export default function Analytics({ children }: { children?: React.ReactNode }) {
   const repo = useRepo(); const { settings } = useSettings();
   const sessions = useObservable(() => repo.observeCompletedSessions(), [repo]);
   const logs = useObservable(() => repo.observeAllLogs(), [repo]);
@@ -64,7 +64,7 @@ export default function Analytics() {
   const historicalCategories = categoryActivity(sessions, logs, exercises, { from: -Infinity, to: Infinity });
   const selectClass = 'mt-1.5 w-full rounded-lg border border-input bg-background p-2.5 text-foreground';
   return <div>
-    <PageHeader title="Activity overview" left={<Link to="/activity" aria-label="Back to Activity" className="rounded-full p-2 text-muted-foreground hover:bg-muted"><ArrowLeft className="h-5 w-5" /></Link>} />
+    <PageHeader title="Activity" />
     <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div><h1 className="text-2xl font-bold sm:text-3xl">Your activity</h1><p className="mt-1 text-sm text-muted-foreground">{range ? `${dateLabel(range.from)} – ${dateLabel(range.to - 1)}, ${new Date(range.to - 1).getFullYear()}` : 'Choose a date range'}</p></div>
@@ -122,12 +122,13 @@ export default function Analytics() {
           </section>
           <section className={panel} aria-label="Body-weight history">
             <div className="mb-5"><h2 className="font-semibold">Body weight</h2><p className="mt-1 text-xs text-muted-foreground">{measurements.length} {measurements.length === 1 ? 'measurement' : 'measurements'} in this period · {settings.unit}</p></div>
-            {measurements.length ? <OverviewChart points={measurements.map((entry) => ({ date: entry.date, value: entry.weight }))} label="Body weight" unit={settings.unit} line /> : <EmptyChart>No body-weight entries in this period. Add a measurement in Activity.</EmptyChart>}
+            {measurements.length ? <OverviewChart points={measurements.map((entry) => ({ date: entry.date, value: entry.weight }))} label="Body weight" unit={settings.unit} line /> : <EmptyChart>No body-weight entries in this period. Add a measurement in Today.</EmptyChart>}
           </section>
         </div>
         {selectedCategory && <div ref={recordsRef} className="scroll-mt-20"><CategoryRecords category={selectedCategory} exercises={exercises} sessions={recordSessions} logs={logs} unit={settings.unit} /></div>}
-        <Link to="/activity" className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-sm font-semibold hover:bg-muted/50">View or add activity<ChevronRight className="h-4 w-4 text-primary" /></Link>
       </>}
+      {children}
+      <Link to="/" className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 text-sm font-semibold hover:bg-muted/50">Add a run or body weight on Today<ChevronRight className="h-4 w-4 text-primary" /></Link>
     </div>
   </div>;
 }

@@ -5,7 +5,6 @@ import { useSettings } from '@/hooks/useSettings';
 import { AppShell } from '@/components/AppShell';
 import type { Theme } from '@/types';
 
-import Analytics from '@/pages/Analytics';
 import Dashboard from '@/pages/Dashboard';
 import Workout from '@/pages/Workout';
 import Summary from '@/pages/Summary';
@@ -72,7 +71,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/workout/:sessionId" element={<Workout />} />
         <Route path="/summary/:sessionId" element={<Summary />} />
-        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/analytics" element={<Navigate to="/activity" replace />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:sessionId" element={<HistoryDetail />} />

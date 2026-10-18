@@ -16,6 +16,7 @@ import { deriveTodayTemplate, getRotation } from '@/utils/program';
 import { greeting } from '@/utils/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { TodayEntries } from '@/components/TodayEntries';
 import type { WorkoutSession, WorkoutTemplate } from '@/types';
 
 export default function Dashboard() {
@@ -93,6 +94,8 @@ export default function Dashboard() {
           <SettingsIcon className="h-5 w-5" />
         </button>
       </header>
+
+      <TodayEntries />
 
       <div className="grid items-start gap-6 px-5 py-4 xl:grid-cols-[1.15fr_1fr]">
         {active ? (
