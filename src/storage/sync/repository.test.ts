@@ -144,6 +144,7 @@ describe('migration and dependent conflict recovery', () => {
     const source = repo(); await source.createRun({ date: 1, distanceKm: 5, durationSeconds: 1000 });
     const op = (await source.nextOperation(Date.now()))!;
     await source.acknowledge(op, { status: 'conflict', records: [{ ...accepted(op)[0], version: 3, data: { ...op.mutations[0].data, distanceKm: 9 } }] });
+    await source.applyChanges({ cursor: 4, hasMore: false, changes: [{ ...accepted(op)[0], version: 4, sequence: 4, data: { ...op.mutations[0].data, distanceKm: 12 } }] });
     const backup = await source.createBackup();
     const local = new DexieRepository(crypto.randomUUID()); repositories.push(local);
     await local.importData({ text: async () => JSON.stringify(backup) } as File);
@@ -151,7 +152,7 @@ describe('migration and dependent conflict recovery', () => {
     expect((await local.createBackup()).data.runs![0].distanceKm).toBe(5);
     const conflict = (await first(local.observeConflicts()))[0];
     await local.resolveConflict(conflict.id, 'remote');
-    expect((await local.createBackup()).data.runs![0].distanceKm).toBe(9);
+    expect((await local.createBackup()).data.runs![0].distanceKm).toBe(12);
     expect(await local.nextOperation(Date.now())).toBeUndefined();
   });
 });

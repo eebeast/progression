@@ -66,7 +66,7 @@ function AccountScope({ account, error, setError, onSignedOut, children }: {
     ? new DexieRepository(`progression:${cloudProject}:${account.id}`, `${cloudProject}/${account.id}`)
     : dexieRepository);
   const [coordinator] = React.useState(() => account && cloudClient
-    ? new SyncCoordinator(repo, new SupabaseTransport(cloudClient)) : null);
+    ? new SyncCoordinator(repo, new SupabaseTransport(cloudClient), `${cloudProject}/${account.id}`) : null);
   const status = useObservable(() => repo.observeSyncStatus(), [repo]) ?? { pending: 0, conflicts: 0 };
   const conflicts = useObservable(() => repo.observeConflicts(), [repo]) ?? [];
   const alive = React.useRef(true);

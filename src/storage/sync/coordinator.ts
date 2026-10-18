@@ -4,7 +4,7 @@ import type { SyncRepository, SyncTransport } from './types';
 export class SyncCoordinator {
   private running: Promise<void> | undefined;
   private stopped = false;
-  constructor(private repository: SyncRepository, private transport: SyncTransport) {}
+  constructor(private repository: SyncRepository, private transport: SyncTransport, private accountKey?: string) {}
 
   stop() { this.stopped = true; }
   resume() { this.stopped = false; }
@@ -12,7 +12,14 @@ export class SyncCoordinator {
   sync(): Promise<void> {
     if (this.stopped) return Promise.resolve();
     if (this.running) return this.running;
-    this.running = this.run().finally(() => { this.running = undefined; });
+    const cycle = (async () => {
+      if (this.accountKey && typeof navigator !== 'undefined' && navigator.locks) {
+        await navigator.locks.request(`progression-sync:${this.accountKey}`, { ifAvailable: true }, async (lock) => {
+          if (lock && !this.stopped) await this.run();
+        });
+      } else await this.run();
+    })();
+    this.running = cycle.finally(() => { this.running = undefined; });
     return this.running;
   }
 

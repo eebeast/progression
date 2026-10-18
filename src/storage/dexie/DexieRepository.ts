@@ -932,8 +932,11 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
           // Restore foreign intent for review, never as a transport queue for this device/account.
           const originals = [...backup.recovery.operations, ...backup.recovery.conflicts.map((c) => c.operation)];
           const intent = new Map(originals.flatMap((op) => op.mutations).map((m) => [recordKey(m.store, m.id), m]));
-          const accepted = new Map([...backup.recovery.versions, ...backup.recovery.conflicts.flatMap((c) => c.records)]
-            .map((row) => [recordKey(row.store, row.id), row]));
+          const accepted = new Map<string, RemoteRecord>();
+          for (const row of [...backup.recovery.versions, ...backup.recovery.conflicts.flatMap((c) => c.records)]) {
+            const key = recordKey(row.store, row.id);
+            if (!accepted.has(key) || accepted.get(key)!.version < row.version) accepted.set(key, row);
+          }
           const id = newId();
           await this.db.syncConflicts.put({ id, operation: { id, mutations: [...intent.values()], createdAt: Date.now(), attempts: 0, nextAttemptAt: 0 },
             records: [...intent.keys()].map((key) => accepted.get(key) ?? { ...intent.get(key)!, data: null, version: 0 }),

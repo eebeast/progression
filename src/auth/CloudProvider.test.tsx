@@ -19,9 +19,9 @@ vi.mock('./client', () => ({
       getSession: async () => ({ data: { session: auth.account ? { user: auth.account } : null }, error: auth.fail ? new Error('Offline') : null }),
       signOut: async () => { if (auth.signOutFails) throw new Error('Offline sign-out'); auth.account = null; auth.callback?.('SIGNED_OUT', null); return {}; },
     },
-    rpc: async (method: string, args: { mutations?: { baseVersion: number }[] }) => ({ data: method === 'sync_pull'
+    rpc: (method: string, args: { mutations?: { baseVersion: number }[] }) => ({ abortSignal: async () => ({ data: method === 'sync_pull'
       ? { changes: [], cursor: 0, hasMore: false }
-      : { status: 'accepted', records: args.mutations?.map((m) => ({ ...m, version: m.baseVersion + 1 })) }, error: null }),
+      : { status: 'accepted', records: args.mutations?.map((m) => ({ ...m, version: m.baseVersion + 1 })) }, error: null }) }),
   },
 }));
 function Probe() {

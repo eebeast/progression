@@ -1,12 +1,12 @@
 import 'fake-indexeddb/auto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DexieRepository } from '@/storage/dexie/DexieRepository';
 import { SyncCoordinator } from './coordinator';
 import type { Change, Operation, PushResult, SyncTransport } from './types';
 
 const repositories: DexieRepository[] = [];
 function device() { const repo = new DexieRepository(crypto.randomUUID(), 'test/account'); repositories.push(repo); return repo; }
-afterEach(() => { repositories.forEach((repo) => repo.close()); repositories.length = 0; });
+afterEach(() => { vi.unstubAllGlobals(); repositories.forEach((repo) => repo.close()); repositories.length = 0; });
 
 /** Test server boundary: stable IDs, revisions, receipts and deterministic change cursor. */
 class Server implements SyncTransport {
@@ -66,4 +66,16 @@ describe('two-client sync', () => {
     coordinator.stop(); release!(); await cycle;
     expect(await a.getCursor()).toBe(0);
   });
+});
+
+it('leaves durable work pending when another tab holds the account sync lock', async () => {
+  const repository = device();
+  await repository.createRun({ date: 1, distanceKm: 5, durationSeconds: 1500 });
+  const push = vi.fn(); const pull = vi.fn();
+  vi.stubGlobal('navigator', { locks: {
+    request: async (_name: string, _options: unknown, callback: (lock: Lock | null) => Promise<void>) => callback(null),
+  } });
+  await new SyncCoordinator(repository, { push, pull }, 'project/account').sync();
+  expect(push).not.toHaveBeenCalled(); expect(pull).not.toHaveBeenCalled();
+  expect(await repository.nextOperation(Date.now())).toBeDefined();
 });
