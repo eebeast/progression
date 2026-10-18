@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Today records runs and weight while one Activity screen recalls and charts them', async ({ page }) => {
+test('Today records activity, Dashboard charts it, and Logbook filters the records', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
   await page.getByLabel('Your name').fill('Activity test');
@@ -15,19 +15,30 @@ test('Today records runs and weight while one Activity screen recalls and charts
   await page.getByRole('button', { name: 'Save weight', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Body weight saved');
   await page.screenshot({ path: test.info().outputPath('today-entries.png'), fullPage: true, animations: 'disabled' });
-  await page.getByRole('link', { name: 'Activity', exact: true }).click();
+  await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page).toHaveURL(/\/activity$/);
   await expect(page.getByRole('region', { name: 'Activity over time' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Activity calendar' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Recent runs' })).toContainText('5 km');
-  await expect(page.getByRole('region', { name: 'Latest body weight' })).toContainText('75.5');
+  await expect(page.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
+  await expect(page.getByRole('table', { name: 'Body weight recorded values' })).toContainText('75.5 kg');
+  await expect(page.getByRole('region', { name: 'Activity streaks' }).getByRole('region', { name: 'Activity calendar' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Log run', exact: true })).toHaveCount(0);
   await expect(page.getByText('View activity overview', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Activity streaks' })).toHaveCount(1);
+  await page.getByRole('region', { name: 'Activity calendar' }).getByRole('link', { name: 'View records' }).click();
+  await expect(page).toHaveURL(/\/history\?date=/);
+  await expect(page.getByRole('link', { name: 'Logbook', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('group', { name: 'Record type' }).getByRole('button', { name: 'Runs', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Logbook records' })).toContainText('5 km');
+  await expect(page.getByRole('button', { name: /75.5kg/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Body weight', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Logbook records' })).toContainText('75.5kg');
+  await page.getByRole('button', { name: 'Cycles', exact: true }).click();
+  await expect(page.getByText('No matching records', { exact: true })).toBeVisible();
   await page.goto('/analytics');
   await expect(page).toHaveURL(/\/activity$/);
-  await expect(page.getByRole('link', { name: 'Activity', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('link', { name: 'Dashboard', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath('activity-merged-mobile.png'), fullPage: true, animations: 'disabled' });

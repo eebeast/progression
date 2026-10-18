@@ -89,8 +89,10 @@ concurrent set numbering, and session snapshots.
   between top-set weight and working-set count. Facts only: **no** trend/projection/average;
   renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
   `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
-- **Activity** — `/activity` combines same-theme charts, streaks, calendar and
-  editable run/body-weight history. `/analytics` redirects there. See
+- **Dashboard and Logbook** — `/activity` shows charts and a combined streak/calendar
+  card. `/history` (Logbook) owns exercise/run/body-weight records and type filters,
+  including an empty Cycles filter until cycling logging exists. Calendar dates link
+  to `/history?date=YYYY-MM-DD`. `/analytics` redirects to Dashboard. See
   `docs/activity-overview.md`. Categories are Chest/Legs/Back/Core/Arms/Compound;
   `Exercise.category?` wins over legacy labels/configured names. New exercise UI
   requires a category. No Unspecified category is displayed. Workout activity has
@@ -107,8 +109,8 @@ concurrent set numbering, and session snapshots.
   containers and IDs, reports suspicious timestamps and unresolved references without
   rewriting source records, and feeds the Settings import confirmation before replacement.
 - **Body-weight log** — `bodyWeights` store + `observe/add/update/deleteBodyWeight`;
-  new entries use `TodayEntries` on Today; `BodyWeightSection` on Activity retains
-  edit/delete controls with creation hidden. `RunForm` and `BodyWeightForm` await
+  new entries use `TodayEntries` on Today; `BodyWeightRow` in Logbook retains
+  edit/delete controls. Dashboard displays body weight only as a chart. `RunForm` and `BodyWeightForm` await
   persistence, prevent repeated saves and retain failed drafts.
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping

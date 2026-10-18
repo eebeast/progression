@@ -1,17 +1,23 @@
-# Activity
+# Dashboard and Logbook
 
-The unified dashboard at `/activity` uses the existing card, typography and accent
-tokens. It includes charts, streaks, calendar and editable run/body-weight history.
-The former `/analytics` URL redirects to `/activity` for existing bookmarks.
+**Dashboard** (`/activity`) shows charts and a combined **Keep showing up** streak
+and calendar card. Run and body-weight record lists live only in **Logbook**
+(`/history`), where records can be edited or deleted. Dashboard shows body weight
+as a chart rather than a record list or latest-weight card. Existing route URLs
+remain supported; `/analytics` redirects to `/activity`.
 
-## Recording activity
+## Recording and finding activity
 
 Today (`/`) has **Add run** and **Add weight** buttons beside the workout entry flow.
 Each opens an inline form. Saves await local persistence, reject repeated clicks,
-and retain the entered values if a write fails. Activity recalls saved records and
-keeps inline editing/deletion; new entries are created on Today. Correcting invalid
-chart dates does not unmount the calendar/history or discard open edit drafts. There is one streak
-summary and one running summary on the merged screen.
+and retain the entered values if a write fails.
+
+Logbook filters are All, Exercises, Runs, Cycles and Body weight. Cycles currently
+has an honest empty state because there is no cycling logger/data store yet.
+The combined calendar highlights workout/run dates; selecting a date exposes a
+**View records** link to `/history?date=YYYY-MM-DD`. Logbook preserves that date
+while switching record types and offers **Show all dates** to clear it. The calendar
+and streak remain available while correcting invalid chart dates.
 
 ## Categories
 
