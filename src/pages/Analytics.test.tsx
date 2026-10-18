@@ -7,6 +7,7 @@ import { of, type WorkoutRepository } from '@/storage/repository';
 import { DEFAULT_SETTINGS } from '@/storage/defaults';
 import Analytics from './Analytics';
 import type { Exercise, ExerciseLog, WorkoutSession } from '@/types';
+import { userExerciseCategories } from '@/test/fixtures/userExerciseCategories';
 
 function setup(overrides: Partial<WorkoutRepository> = {}) {
   const now = Date.now();
@@ -23,6 +24,32 @@ function setup(overrides: Partial<WorkoutRepository> = {}) {
   render(<MemoryRouter><RepositoryProvider repository={repo}><Analytics /></RepositoryProvider></MemoryRouter>);
   return userEvent.setup();
 }
+
+it('shows every reported plan exercise in its category with all recorded loads', async () => {
+  const date = new Date(2023, 5, 1).getTime();
+  const user = setup({
+    observeExercises: () => of(userExerciseCategories.map(([name], index) => ({ id: `plan-${index}`, name, createdAt: date }))),
+    observeCompletedSessions: () => of([{ id: 'legacy', date, status: 'completed' }] as WorkoutSession[]),
+    observeAllLogs: () => of(userExerciseCategories.flatMap(([exerciseName], index) => [0, 10].map((weight, set) => ({
+      id: `plan-${index}-${set}`, exerciseId: `plan-${index}`, exerciseName, sessionId: 'legacy',
+      weight, reps: 8, setNumber: set + 1, timestamp: date + set,
+    }))) as ExerciseLog[]),
+  });
+  await user.click(await screen.findByRole('button', { name: 'This year' }));
+  for (const category of new Set(userExerciseCategories.map(([, group]) => group))) {
+    await user.click(within(screen.getByRole('group', { name: 'Exercise categories' })).getByRole('button', { name: new RegExp(category) }));
+    const records = screen.getByRole('region', { name: `${category} exercise records` });
+    const expected = userExerciseCategories.filter(([, group]) => group === category);
+    for (const [name] of expected) expect(within(records).getByRole('link', { name })).toBeVisible();
+    const tables = within(records).getAllByRole('table', { name: 'Set load recorded values' });
+    expect(tables).toHaveLength(expected.length);
+    for (const table of tables) {
+      expect(within(table).getAllByRole('row')).toHaveLength(3);
+      expect(table).toHaveTextContent('0 kg');
+      expect(table).toHaveTextContent('10 kg');
+    }
+  }
+});
 
 it('shows factual cards and applies optional filters only to gym records', async () => {
   const user = setup();

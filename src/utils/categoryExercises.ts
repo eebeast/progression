@@ -19,5 +19,14 @@ export function categoryExercises(category: string, exercises: Exercise[], logs:
   for (const exercise of EXERCISE_CATALOG) if (exercise.category === category && !names.has(exerciseNameKey(exercise.name))) {
     rows.push({ name: exercise.name }); names.add(exerciseNameKey(exercise.name));
   }
-  return rows.sort((a, b) => Number(loggedIds.has(b.id ?? '')) - Number(loggedIds.has(a.id ?? '')) || a.name.localeCompare(b.name));
+  const recordedNames = new Set(rows.filter((row) => loggedIds.has(row.id ?? '')).map((row) => exerciseNameKey(row.name)));
+  const unloggedNames = new Set<string>();
+  return rows.filter((row) => {
+    // Every recorded identity stays visible; only redundant empty cards are hidden.
+    if (loggedIds.has(row.id ?? '')) return true;
+    const key = exerciseNameKey(row.name);
+    if (recordedNames.has(key) || unloggedNames.has(key)) return false;
+    unloggedNames.add(key);
+    return true;
+  }).sort((a, b) => Number(loggedIds.has(b.id ?? '')) - Number(loggedIds.has(a.id ?? '')) || a.name.localeCompare(b.name));
 }

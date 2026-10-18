@@ -1,6 +1,12 @@
 import { expect, it } from 'vitest';
 import { muscleGroup } from './muscleGroups';
 import { PROGRAM } from '@/storage/defaults';
+import { userExerciseCategories } from '@/test/fixtures/userExerciseCategories';
+
+it.each(userExerciseCategories)('includes reported plan exercise %s in %s', (name, category) => {
+  expect(muscleGroup({ id: 'original-id', name, createdAt: 0 })).toBe(category);
+  expect(muscleGroup(undefined, name)).toBe(category);
+});
 
 it('gives every predefined movement a display group', () => {
   for (const day of PROGRAM) for (const exercise of day.exercises) {

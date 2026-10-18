@@ -41,6 +41,17 @@ Lateral Raise and Skullcrusher to Arms; Overhead Press to Compound.
 Core aliases include Ab Wheel Rollouts, Ab Rollout and Situp. Keep the original
 program-name regression tests when extending the catalog: unrecognized legacy names
 otherwise disappear from category charts even though their records remain in Logbook.
+The reported four-day personal plan is also a regression fixture
+(`src/test/fixtures/userExerciseCategories.ts`), covering Reverse Fly, Dumbbell Rows,
+Push Up, Weighted Dips, DB Fly, single-arm triceps variants, shoulder pressing,
+barbell/dumbbell skull crushers, Dead Bugs, Lunges and Sumo squats. Distinct movement
+variants keep separate catalog entries and logged IDs. Ambiguous custom names such
+as Calthenic require an explicit category rather than a guessed movement.
+Interchangeable names such as Barbell Row / Barbell Bent-over Row, Bench Press /
+Barbell Bench Press and EZ Bar Curl / EZ Bar Biceps Curl share a catalog key.
+Category details hide redundant unlogged cards for these aliases. If distinct
+saved IDs both have recorded sets, both histories remain visible and no sets are
+merged or rewritten. Weighted and unweighted movements remain separate presets.
 Unknown exercises are retained in history but do not
 create an Unspecified dashboard category. Categorize them in the exercise library.
 No schema version bump or destructive data migration is needed.
