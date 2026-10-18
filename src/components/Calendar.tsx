@@ -9,9 +9,10 @@ interface CalendarProps {
   activeKeys: Set<string>;
   selectedKey: string | null;
   onSelectDay: (key: string) => void;
+  embedded?: boolean;
 }
 
-export function Calendar({ activeKeys, selectedKey, onSelectDay }: CalendarProps) {
+export function Calendar({ activeKeys, selectedKey, onSelectDay, embedded = false }: CalendarProps) {
   const now = new Date();
   const [view, setView] = React.useState({ year: now.getFullYear(), month: now.getMonth() });
 
@@ -40,7 +41,7 @@ export function Calendar({ activeKeys, selectedKey, onSelectDay }: CalendarProps
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <div className={cn('min-w-0', embedded ? 'mx-auto w-full max-w-[336px]' : 'rounded-xl border border-border bg-card p-3 sm:p-4')}>
       <div className="mb-3 flex items-center justify-between">
         <button
           type="button"
@@ -91,7 +92,8 @@ export function Calendar({ activeKeys, selectedKey, onSelectDay }: CalendarProps
               aria-label={key}
               aria-pressed={isSelected}
               className={cn(
-                'relative flex aspect-square min-h-[40px] items-center justify-center rounded-lg text-sm tabular-nums transition-colors',
+                'relative flex aspect-square w-full items-center justify-center rounded-lg text-sm tabular-nums transition-colors',
+                !embedded && 'min-h-[40px]',
                 isFuture && 'cursor-default text-muted-foreground/40',
                 !isFuture && !active && !isSelected && 'text-foreground hover:bg-muted',
                 active && !isSelected && 'bg-primary/15 font-semibold text-primary hover:bg-primary/25',

@@ -1,9 +1,10 @@
 import * as React from 'react';
+import { useCloud } from '@/auth/CloudProvider';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check, SkipForward, Flag } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
-import { of, type LastPerformed } from '@/storage/repository';
+import { of, type LastPerformed, type Observer } from '@/storage/repository';
 import { useSettings } from '@/hooks/useSettings';
 import { PageHeader } from '@/components/PageHeader';
 import { Progress } from '@/components/ui/progress';
@@ -19,21 +20,36 @@ export default function Workout() {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const repo = useRepo();
+  const cloud = useCloud();
+  const savingRef = React.useRef(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string>();
   const { settings } = useSettings();
 
   const session = useObservable(() => repo.observeSession(sessionId), [repo, sessionId]);
   const templateId = session?.templateId;
   const template = useObservable(
-    () => (templateId ? repo.observeTemplate(templateId) : of<WorkoutTemplate | undefined>(undefined)),
-    [repo, templateId],
+    () => {
+      if (!templateId) return of<WorkoutTemplate | null | undefined>(undefined);
+      if (session?.exercises) return of<WorkoutTemplate | null>(null);
+      return {
+        subscribe(observer: Observer<WorkoutTemplate | null>) {
+          return repo.observeTemplate(templateId).subscribe({
+            next: (value) => observer.next(value ?? null),
+            error: (error) => observer.error?.(error),
+          });
+        },
+      };
+    },
+    [repo, templateId, session?.exercises],
   );
   const allLogs =
     useObservable(() => repo.observeSessionLogs(sessionId), [repo, sessionId]) ??
     ([] as ExerciseLog[]);
 
   const exercises = React.useMemo<TemplateExercise[]>(
-    () => (template ? [...template.exercises].sort((a, b) => a.order - b.order) : []),
-    [template],
+    () => [...(session?.exercises ?? template?.exercises ?? [])].sort((a, b) => a.order - b.order),
+    [session?.exercises, template],
   );
 
   const [index, setIndex] = React.useState(0);
@@ -55,7 +71,7 @@ export default function Workout() {
     () =>
       current
         ? allLogs
-            .filter((l) => l.exerciseId === current.exerciseId)
+            .filter((l) => l.exerciseId === current.exerciseId && (!current.assignmentId || !l.assignmentId || l.assignmentId === current.assignmentId))
             .sort((a, b) => a.setNumber - b.setNumber)
         : [],
     [allLogs, current],
@@ -88,7 +104,7 @@ export default function Workout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo, current?.exerciseId, sessionId]);
 
-  const isStarted = current ? started.has(current.exerciseId) || currentLogs.length > 0 : false;
+  const isStarted = current ? started.has(current.assignmentId ?? current.exerciseId) || currentLogs.length > 0 : false;
   // Only working sets count toward the target.
   const workingSetCount = currentLogs.filter((l) => !l.isWarmup).length;
   const targetMet = current ? workingSetCount >= current.targetSets : false;
@@ -108,7 +124,8 @@ export default function Workout() {
     } else if (
       lastWorkout &&
       lastWorkout.sets.length > 0 &&
-      lastWorkout.sets[0].exerciseId === current.exerciseId
+      lastWorkout.sets[0].exerciseId === current.exerciseId &&
+      (lastWorkout.sets[0].metric ?? 'reps') === (current.metric ?? 'reps')
     ) {
       setWeight(lastWorkout.sets[0].weight);
       setReps(lastWorkout.sets[0].reps);
@@ -117,7 +134,7 @@ export default function Workout() {
       setReps(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.exerciseId, lastWorkout]);
+  }, [current?.exerciseId, current?.assignmentId, current?.metric, lastWorkout]);
 
   // Flash the newest set once the live logs reflect a just-saved set.
   const pendingFlash = React.useRef(false);
@@ -140,7 +157,7 @@ export default function Workout() {
   const completedSets = allLogs.filter((l) => !l.isWarmup).length;
   const progressPct = totalTarget > 0 ? (completedSets / totalTarget) * 100 : 0;
 
-  if (session === undefined || template === undefined) {
+  if (session === undefined || (session && !session.exercises && template === undefined)) {
     return <div className="min-h-[100dvh] bg-background" />;
   }
   if (!session) {
@@ -156,22 +173,29 @@ export default function Workout() {
 
   const startExercise = () => {
     if (!current) return;
-    setStarted((prev) => new Set(prev).add(current.exerciseId));
+    setStarted((prev) => new Set(prev).add(current.assignmentId ?? current.exerciseId));
   };
 
   const saveSet = async () => {
-    if (!current || reps <= 0) return;
-    pendingFlash.current = true;
-    await repo.addSet({
-      sessionId,
-      exerciseId: current.exerciseId,
-      exerciseName: current.name,
-      weight,
-      reps,
-      metric,
-      isWarmup: warmup,
-    });
-    // Keep both weight and reps pre-filled, ready to repeat the same set.
+    if (!current || reps <= 0 || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setSaveError(undefined);
+    try {
+      pendingFlash.current = true;
+      await repo.addSet({ sessionId, exerciseId: current.exerciseId, exerciseName: current.name,
+        assignmentId: current.assignmentId, weight, reps, metric, isWarmup: warmup });
+    } catch (error) {
+      pendingFlash.current = false;
+      setSaveError(error instanceof Error ? error.message : 'Set could not be saved.');
+    } finally { savingRef.current = false; setSaving(false); }
+  };
+
+  const undoLastSet = async () => {
+    const last = [...allLogs].sort((a, b) => b.timestamp - a.timestamp).at(0);
+    if (!last || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setSaveError(undefined);
+    try { await repo.deleteSet(last.id); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : 'Undo failed.'); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   const goTo = (i: number) => {
@@ -193,7 +217,7 @@ export default function Workout() {
             <ChevronLeft className="h-6 w-6" />
           </button>
         }
-        title={template.name}
+        title={session.templateName}
         right={
           <button
             type="button"
@@ -340,6 +364,7 @@ export default function Workout() {
             </div>
           )}
 
+          {allLogs.length > 0 && <Button variant="ghost" disabled={saving} onClick={undoLastSet}>Undo last saved set</Button>}
           <div className="flex-1" />
 
           {/* Sticky footer actions */}
@@ -347,6 +372,8 @@ export default function Workout() {
             className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-border bg-card/70 px-4 pt-3 backdrop-blur-[20px] backdrop-saturate-[1.8]"
             style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
           >
+            {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+            <p role="status" className="text-center text-xs text-muted-foreground">{saving ? 'Saving locally…' : cloud?.account ? cloud.status.conflicts ? 'Saved locally · sync conflicts need review' : cloud.status.pending ? `Saved locally · ${cloud.status.pending} changes pending` : cloud.status.lastSyncedAt ? 'Saved and synced' : 'Saved on this device' : 'Saved on this device'}</p>
             {!isStarted ? (
               <>
                 <Button size="lg" onClick={startExercise}>
@@ -363,7 +390,7 @@ export default function Workout() {
               </>
             ) : (
               <>
-                <Button size="lg" disabled={reps <= 0} onClick={saveSet}>
+                <Button size="lg" disabled={reps <= 0 || saving} onClick={saveSet}>
                   <Check className="h-5 w-5" />
                   Save set
                 </Button>

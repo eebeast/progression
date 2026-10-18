@@ -2,15 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { RepositoryProvider } from '@/storage/RepositoryProvider';
+import { CloudProvider } from '@/auth/CloudProvider';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <RepositoryProvider>
+    <CloudProvider>
       <BrowserRouter>
         <App />
       </BrowserRouter>
-    </RepositoryProvider>
+    </CloudProvider>
   </React.StrictMode>,
 );

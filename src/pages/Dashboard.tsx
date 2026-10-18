@@ -16,6 +16,7 @@ import { deriveTodayTemplate, getRotation } from '@/utils/program';
 import { greeting } from '@/utils/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { TodayEntries } from '@/components/TodayEntries';
 import type { WorkoutSession, WorkoutTemplate } from '@/types';
 
 export default function Dashboard() {
@@ -73,7 +74,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl xl:max-w-4xl">
+    <div className="mx-auto w-full max-w-md md:max-w-3xl xl:max-w-5xl">
       <header
         className="flex items-center justify-between px-5 pb-2 pt-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
@@ -94,7 +95,9 @@ export default function Dashboard() {
         </button>
       </header>
 
-      <div className="flex flex-col gap-6 px-5 py-4">
+      <TodayEntries />
+
+      <div className="grid items-start gap-6 px-5 py-4 xl:grid-cols-[1.15fr_1fr]">
         {active ? (
           <Card className="border-primary/40 bg-primary/5">
             <CardContent className="pt-4">
@@ -144,6 +147,12 @@ export default function Dashboard() {
                   {today.exercises.length} exercises
                 </span>
               </div>
+              <div className="mt-5 divide-y divide-border">
+                {[...today.exercises].sort((a, b) => a.order - b.order).map((exercise, index) => <div className="flex items-center justify-between gap-4 py-3" key={exercise.assignmentId ?? `${exercise.exerciseId}-${index}`}>
+                  <span className="text-sm">{exercise.name}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{exercise.targetSets} × {exercise.targetRepRange}</span>
+                </div>)}
+              </div>
               <Button
                 size="lg"
                 className="mt-4 w-full sm:w-auto sm:px-10"
@@ -158,7 +167,7 @@ export default function Dashboard() {
           <Card>
             <CardContent className="pt-4 text-center">
               <p className="text-sm text-muted-foreground">No workout plans yet.</p>
-              <Button className="mt-3 w-full" onClick={() => navigate('/templates/new')}>
+              <Button className="mt-3 w-full" onClick={() => navigate('/templates')}>
                 Create a plan
               </Button>
             </CardContent>
@@ -169,11 +178,9 @@ export default function Dashboard() {
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-medium text-muted-foreground">Up next</h3>
-              {rotation.length > 1 && (
-                <span className="text-xs text-muted-foreground">Reorder with the arrows</span>
-              )}
+              <button className="text-sm text-primary" onClick={() => navigate('/templates')}>Edit days</button>
             </div>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2">
               {startable.map((t, i) => {
                 const reorderable = rotation.length > 1 && i < rotation.length;
                 const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : i === 2 ? 'Next' : 'Later';

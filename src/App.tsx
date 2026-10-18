@@ -57,6 +57,8 @@ export default function App() {
     return <div className="min-h-[100dvh] bg-background" />;
   }
 
+  if (settings.userName && location.pathname === '/onboarding') return <Navigate to="/" replace />;
+
   // Force onboarding until a name is set.
   if (!settings.userName && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
@@ -69,6 +71,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/workout/:sessionId" element={<Workout />} />
         <Route path="/summary/:sessionId" element={<Summary />} />
+        <Route path="/analytics" element={<Navigate to="/activity" replace />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:sessionId" element={<HistoryDetail />} />

@@ -10,6 +10,7 @@ import type {
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
+import type { BackupImportReport } from '@/storage/legacyBackup';
 
 /**
  * A minimal rxjs-style Observable so the storage seam has NO dependency on
@@ -43,6 +44,7 @@ export function of<T>(value: T): Observable<T> {
 /* ------------------------------ Input shapes ------------------------------ */
 
 export interface NewSetInput {
+  assignmentId?: string;
   sessionId: string;
   exerciseId: string;
   exerciseName: string;
@@ -95,9 +97,15 @@ export interface WorkoutRepository {
   // exercises (global library)
   listExercises(): Promise<Exercise[]>;
   bulkCreateExercises(list: Exercise[]): Promise<void>;
+  observeExercises(): Observable<Exercise[]>;
+  createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string>;
+  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void>;
+  previewExerciseMerge(sourceId: string, targetId: string): Promise<{ templates: number; sessions: number; sets: number }>;
+  mergeExercises(sourceId: string, targetId: string): Promise<void>;
 
   // templates
-  observeTemplates(): Observable<WorkoutTemplate[]>;
+  installFourDayPlan(): Promise<void>;
+  observeTemplates(includeArchived?: boolean): Observable<WorkoutTemplate[]>;
   getTemplate(id: string): Promise<WorkoutTemplate | undefined>;
   observeTemplate(id: string): Observable<WorkoutTemplate | undefined>;
   createTemplate(input: TemplateInput): Promise<string>;
@@ -117,9 +125,12 @@ export interface WorkoutRepository {
   finishSession(id: string, meta: SessionMeta): Promise<void>;
   discardSession(id: string): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  addSessionExercise(id: string, exercise: TemplateExercise): Promise<void>;
+  setRestTimer(id: string, endsAt: number | null): Promise<void>;
 
   // logs (sets)
   observeSessionLogs(sessionId: string): Observable<ExerciseLog[]>;
+  observeAllLogs(): Observable<ExerciseLog[]>;
   /** Every logged set for an exercise, across all sessions, oldest first. */
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]>;
   getLastPerformedSets(
@@ -152,5 +163,6 @@ export interface WorkoutRepository {
 
   // backup
   exportData(): Promise<void>;
-  importData(file: File): Promise<void>;
+  inspectImport(file: File): Promise<BackupImportReport>;
+  importData(file: File, options?: { preferences: 'keep' | 'source' }): Promise<void>;
 }

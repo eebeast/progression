@@ -46,6 +46,7 @@ function renderDashboard(over: Partial<WorkoutRepository> = {}) {
     observeTemplates: () => of(templates),
     observeCompletedSessions: () => of([completedPush]),
     observeActiveSession: () => of(null),
+    observeBodyWeights: () => of([]),
     reorderTemplates,
     startSession,
     discardSession: vi.fn().mockResolvedValue(undefined),

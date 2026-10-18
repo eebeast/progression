@@ -67,3 +67,9 @@ describe('buildWorkoutRecap', () => {
     expect(lines[3]).toBe('Bench: 100lb×5, 100lb×8');
   });
 });
+
+it('formats timed and zero-external-weight sets without inventing load', () => {
+  const lines = recap({ logs: [{ ...set('hold', 'Plank', 0, 45, 1), metric: 'time' }, set('push', 'Push-up', 0, 10, 1)] });
+  expect(lines).toContain('Plank: 45s');
+  expect(lines).toContain('Push-up: 10');
+});

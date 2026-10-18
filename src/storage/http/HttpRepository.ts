@@ -13,6 +13,7 @@ import type {
   ExerciseLog,
   Run,
   Settings,
+  TemplateExercise,
   WorkoutSession,
   WorkoutTemplate,
 } from '@/types';
@@ -26,6 +27,7 @@ import type {
   TemplateInput,
   WorkoutRepository,
 } from '@/storage/repository';
+import type { BackupImportReport } from '@/storage/legacyBackup';
 
 const TODO = () => {
   throw new Error('not implemented');
@@ -50,9 +52,15 @@ export class HttpRepository implements WorkoutRepository {
   bulkCreateExercises(_list: Exercise[]): Promise<void> {
     return TODO();
   }
+  observeExercises(): Observable<Exercise[]> { return TODO(); }
+  createExercise(_input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string> { return TODO(); }
+  updateExercise(_id: string, _patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> { return TODO(); }
+  previewExerciseMerge(_source: string, _target: string): Promise<{ templates: number; sessions: number; sets: number }> { return TODO(); }
+  mergeExercises(_source: string, _target: string): Promise<void> { return TODO(); }
 
   // templates
-  observeTemplates(): Observable<WorkoutTemplate[]> {
+  installFourDayPlan(): Promise<void> { return TODO(); }
+  observeTemplates(_includeArchived?: boolean): Observable<WorkoutTemplate[]> {
     return TODO();
   }
   getTemplate(_id: string): Promise<WorkoutTemplate | undefined> {
@@ -105,11 +113,14 @@ export class HttpRepository implements WorkoutRepository {
   deleteSession(_id: string): Promise<void> {
     return TODO();
   }
+  addSessionExercise(_id: string, _exercise: TemplateExercise): Promise<void> { return TODO(); }
+  setRestTimer(_id: string, _endsAt: number | null): Promise<void> { return TODO(); }
 
   // logs
   observeSessionLogs(_sessionId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
+  observeAllLogs(): Observable<ExerciseLog[]> { return TODO(); }
   observeExerciseLogs(_exerciseId: string): Observable<ExerciseLog[]> {
     return TODO();
   }
@@ -167,7 +178,10 @@ export class HttpRepository implements WorkoutRepository {
   exportData(): Promise<void> {
     return TODO();
   }
-  importData(_file: File): Promise<void> {
+  inspectImport(_file: File): Promise<BackupImportReport> {
+    return TODO();
+  }
+  importData(_file: File, _options?: { preferences: 'keep' | 'source' }): Promise<void> {
     return TODO();
   }
 }

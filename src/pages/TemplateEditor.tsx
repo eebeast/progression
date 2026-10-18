@@ -2,17 +2,24 @@ import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronUp, ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
+import { useObservable } from '@/hooks/useObservable';
 import { newId } from '@/utils/format';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Stepper } from '@/components/Stepper';
+import { CategoryPicker } from '@/components/CategoryPicker';
+import { configuredCategory } from '@/utils/muscleGroups';
 import { cn } from '@/lib/utils';
-import type { Exercise, Metric, TemplateExercise } from '@/types';
+import type { Exercise, ExerciseCategory, Metric, TemplateExercise } from '@/types';
 
 interface EditRow {
+  category?: ExerciseCategory;
   key: string;
+  exerciseId?: string;
+  confirmedDistinct?: boolean;
+  restSeconds?: number;
   name: string;
   targetSets: number;
   targetRepRange: string;
@@ -33,6 +40,9 @@ export default function TemplateEditor() {
   const isNew = !templateId;
 
   const repo = useRepo();
+  const library = useObservable(() => repo.observeExercises(), [repo]) ?? [];
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string>();
   const [loaded, setLoaded] = React.useState(isNew);
   const [name, setName] = React.useState('');
   const [estimatedMinutes, setEstimatedMinutes] = React.useState(60);
@@ -53,7 +63,9 @@ export default function TemplateEditor() {
         [...t.exercises]
           .sort((a, b) => a.order - b.order)
           .map((e) => ({
-            key: newId(),
+            key: e.assignmentId ?? newId(),
+            exerciseId: e.exerciseId,
+            restSeconds: e.restSeconds,
             name: e.name,
             targetSets: e.targetSets,
             targetRepRange: e.targetRepRange,
@@ -83,45 +95,30 @@ export default function TemplateEditor() {
   };
 
   const validRows = rows.filter((r) => r.name.trim().length > 0);
-  const canSave = name.trim().length > 0 && validRows.length > 0;
+  const canSave = name.trim().length > 0 && validRows.length > 0 && validRows.every((row) => row.exerciseId || row.category);
 
   const save = async () => {
-    if (!canSave) return;
-
-    // Map each row's name into the global exercise library (case-insensitive,
-    // create if missing), then write the template through the repository.
-    const library = await repo.listExercises();
-    const byName = new Map(library.map((e) => [e.name.toLowerCase(), e]));
-    const toCreate: Exercise[] = [];
-
-    const exercises: TemplateExercise[] = validRows.map((r, i) => {
-      const trimmed = r.name.trim();
-      const key = trimmed.toLowerCase();
-      let ex = byName.get(key);
-      if (!ex) {
-        ex = { id: newId(), name: trimmed, createdAt: Date.now() };
-        byName.set(key, ex);
-        toCreate.push(ex);
-      }
-      return {
-        exerciseId: ex.id,
-        name: ex.name,
-        targetSets: r.targetSets,
-        targetRepRange: r.targetRepRange.trim() || '–',
-        metric: r.metric,
-        order: i,
-      };
-    });
-
-    if (toCreate.length) await repo.bulkCreateExercises(toCreate);
-
-    const input = { name: name.trim(), estimatedMinutes, exercises };
-    if (isNew) {
-      await repo.createTemplate(input);
-    } else {
-      await repo.updateTemplate(templateId!, input);
-    }
-    navigate('/templates', { replace: true });
+    if (!canSave || saving) return;
+    setSaving(true); setError(undefined);
+    try {
+      const toCreate: Exercise[] = [];
+      const exercises: TemplateExercise[] = validRows.map((row, order) => {
+        const matches = library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === row.name.trim().toLowerCase());
+        if (!row.exerciseId && matches.length && !row.confirmedDistinct) throw new Error('Reuse a matching exercise or confirm a distinct movement.');
+        const id = row.exerciseId ?? newId();
+        if (!row.exerciseId && !row.category) throw new Error('Choose a category for each new exercise.');
+        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), category: row.category, createdAt: Date.now() });
+        return { assignmentId: row.key, exerciseId: id, name: row.name.trim(), targetSets: row.targetSets,
+          restSeconds: row.restSeconds, targetRepRange: row.targetRepRange.trim() || '–', metric: row.metric, order };
+      });
+      if (toCreate.length) await repo.bulkCreateExercises(toCreate);
+      setRows((current) => current.map((row) => ({ ...row, exerciseId: exercises.find((e) => e.assignmentId === row.key)?.exerciseId ?? row.exerciseId })));
+      const input = { name: name.trim(), estimatedMinutes, exercises };
+      if (isNew) await repo.createTemplate(input);
+      else await repo.updateTemplate(templateId!, input);
+      navigate('/templates', { replace: true });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Plan could not be saved.'); }
+    finally { setSaving(false); }
   };
 
   const remove = async () => {
@@ -149,7 +146,7 @@ export default function TemplateEditor() {
           <button
             type="button"
             onClick={save}
-            disabled={!canSave}
+            disabled={!canSave || saving}
             className="px-1 text-sm font-semibold text-primary disabled:opacity-40"
           >
             Save
@@ -158,6 +155,7 @@ export default function TemplateEditor() {
       />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
+        {error && <p role="alert" className="text-destructive">{error}</p>}
         <div className="flex flex-col gap-2">
           <Label htmlFor="plan-name">Plan name</Label>
           <Input
@@ -189,8 +187,14 @@ export default function TemplateEditor() {
             <div key={r.key} className="rounded-xl border border-border bg-card p-3">
               <div className="mb-3 flex items-center gap-2">
                 <Input
+                  autoComplete="off"
                   value={r.name}
-                  onChange={(e) => updateRow(r.key, { name: e.target.value })}
+                  aria-label={`Exercise name ${i + 1}`}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === value.trim().toLowerCase());
+                    updateRow(r.key, { name: value, exerciseId: matches.length === 1 ? matches[0].id : undefined, category: configuredCategory(value), confirmedDistinct: false });
+                  }}
                   placeholder="Exercise name"
                   className="flex-1"
                 />
@@ -204,6 +208,13 @@ export default function TemplateEditor() {
                 </button>
               </div>
 
+              {!r.exerciseId && library.some((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()) && <div className="mb-3 flex flex-col gap-2 text-sm">
+                <p>Matching names found. Choose an existing exercise or confirm this is a different movement.</p>
+                {library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()).map((e) =>
+                  <Button key={e.id} variant="outline" onClick={() => updateRow(r.key, { exerciseId: e.id, name: e.name })}>Use existing {e.name}</Button>)}
+                <label><input type="checkbox" checked={!!r.confirmedDistinct} onChange={(e) => updateRow(r.key, { confirmedDistinct: e.target.checked })} /> This is a distinct movement</label>
+              </div>}
+              {!r.exerciseId && <div className="mb-4"><CategoryPicker value={r.category} onChange={(category) => updateRow(r.key, { category })} /></div>}
               <div className="mb-3 flex rounded-lg border border-border p-1">
                 {(['reps', 'time'] as Metric[]).map((m) => (
                   <button

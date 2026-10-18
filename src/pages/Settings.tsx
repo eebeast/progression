@@ -1,4 +1,7 @@
 import * as React from 'react';
+import { InstallSection } from '@/components/InstallSection';
+import { CloudSection } from '@/components/CloudSection';
+import { useCloud } from '@/auth/CloudProvider';
 import { Download, Upload } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useSettings } from '@/hooks/useSettings';
@@ -57,18 +60,28 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default function SettingsPage() {
   const repo = useRepo();
+  const cloud = useCloud();
   const { settings } = useSettings();
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
 
   const onImportFile = async (file: File) => {
     setImportError(null);
-    const ok = window.confirm(
-      'Importing replaces ALL current data with the backup. This cannot be undone. Continue?',
-    );
-    if (!ok) return;
     try {
-      await repo.importData(file);
+      const report = await repo.inspectImport(file);
+      const counts = Object.entries(report.counts)
+        .map(([type, count]) => `${type}: ${count}`)
+        .join('\n');
+      const warnings = report.warnings.length
+        ? `\n\nReview warnings:\n${report.warnings.slice(0, 5).map((warning) => `- ${warning}`).join('\n')}${
+            report.warnings.length > 5 ? `\n- And ${report.warnings.length - 5} more.` : ''
+          }`
+        : '';
+      const ok = window.confirm(
+        `This backup contains:\n${counts}${warnings}\n\n${cloud?.account ? 'Copy records into this account? Different records with the same ID will block the import.' : 'Importing replaces ALL current data. This cannot be undone. Continue?'}`,
+      );
+      if (!ok) return;
+      await repo.importData(file, cloud?.account ? { preferences: window.confirm('Also use the backup’s name, units and appearance? Cancel keeps current account preferences while importing history.') ? 'source' : 'keep' } : undefined);
       window.location.reload();
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Import failed.');
@@ -80,6 +93,8 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">
+        <CloudSection />
+        <InstallSection />
         <Row label="Name">
           <Input
             value={settings.userName}
@@ -202,7 +217,7 @@ export default function SettingsPage() {
           />
           {importError && <p className="text-sm text-destructive">{importError}</p>}
           <p className="text-xs text-muted-foreground">
-            Importing replaces all current data. Everything stays on this device.
+            {cloud?.account ? 'Account imports copy history and let you choose preferences, then queue cloud updates. Different records with the same ID need review.' : 'Importing replaces all local data. Everything stays on this device until you choose to copy it to an account.'}
           </p>
         </div>
       </div>

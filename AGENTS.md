@@ -7,7 +7,9 @@ you add features or change conventions.
 
 **Progression** — a local-first workout tracker PWA. React 18 + TypeScript + Vite 5,
 Tailwind 3, Dexie 4 / IndexedDB, React Router 6, lucide-react, recharts, vite-plugin-pwa.
-No backend, no auth, no network — all data lives in the browser's IndexedDB.
+Local-only mode uses IndexedDB. Optional Supabase configuration enables Google
+sign-in and account-scoped offline sync. See `docs/local-development.md` for setup;
+hosted verification and actual-backup reconciliation are still release gates.
 
 ## Non-negotiable design principle
 
@@ -40,6 +42,13 @@ Types live in `src/types/index.ts`. Stores are versioned additively in
 `DexieRepository`:
 
 - **v1** `settings, exercises, templates, sessions, logs` · **v2** `runs` · **v3** `bodyWeights`
+  · **v4** `outbox, versions, syncMeta, syncConflicts`
+
+Account repositories use a project/account-specific database. Account mutations and
+their immutable outbox groups commit in one transaction; remote changes bypass that
+queue. Version 2 recovery exports include sync state; normal imports never replay a
+foreign outbox. Account imports merge by ID and reject collisions; local-only imports
+retain the confirmed replacement behavior. Keep this distinction visible in Settings.
 
 Rules:
 - **New store** → new `this.version(N).stores({...})` bump (follow the `runs`/`bodyWeights`
@@ -54,6 +63,21 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 `WorkoutSession`, `WorkoutTemplate`/`TemplateExercise` (has `metric?`), `Run`,
 `BodyWeightEntry`.
 
+New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at start.
+`Workout` uses that snapshot, including an intentionally empty list; legacy sessions
+without it fall back to their current template. Never backfill historical prescriptions
+from a plan that may have changed. This optional field requires no schema bump.
+The default program is the user’s four-day Pull / Push / Legs + Abs / Mix plan.
+`installFourDayPlan` archives previous days rather than deleting them; `observeTemplates`
+hides archived days unless explicitly requested. Keep exercise entry as one plain name
+field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse unique
+exact exercise names internally. The workout screen shows the session's planned
+exercises without an add-exercise form. Rest timer controls are removed from workout
+and plan editing screens. Keep stored timer fields compatible with existing backups.
+
+Repository tests use `fake-indexeddb` and cover import/export, rollback, seeding,
+concurrent set numbering, and session snapshots.
+
 ## Feature map
 
 - **Warm-up sets** — `ExerciseLog.isWarmup`; `components/WarmupToggle.tsx`; filtered out
@@ -67,7 +91,7 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
   dedup by weight×reps keeping the most recent date). Entry points: exercise title in
   `Workout`, group headings in `HistoryDetail`, and — when `settings.showExerciseLibrary`
   is on — an "Exercises" nav tab (`AppShell`) → `/exercises` (`pages/Exercises.tsx`).
-- **Progress chart** — the app's one chart, on `ExerciseHistory` below the PR:
+- **Exercise progress chart** — on `ExerciseHistory` below the PR:
   `components/ExerciseProgressChart.tsx` (recharts `LineChart`, ~180px, `var(--primary)`
   line/dots, no gridlines/legend), fed by `getSessionProgress(logs, dateBySession)` in
   `utils/personalRecords.ts` — one point per completed session (warm-ups excluded,
@@ -75,11 +99,29 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
   between top-set weight and working-set count. Facts only: **no** trend/projection/average;
   renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
   `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
+- **Dashboard and Logbook** — `/activity` shows charts and a combined streak/calendar
+  card. `/history` (Logbook) owns exercise/run/body-weight records and type filters,
+  including an empty Cycles filter until cycling logging exists. Calendar dates link
+  to `/history?date=YYYY-MM-DD`. `/analytics` redirects to Dashboard. See
+  `docs/activity-overview.md`. Categories are Chest/Legs/Back/Core/Arms/Compound;
+  `Exercise.category?` wins over legacy labels/configured names. New exercise UI
+  requires a category. No Unspecified category is displayed. Workout activity has
+  week/month/year/custom ranges; category load and individual set-load graphs use
+  all completed history independently of date controls and gym filters. Category
+  details show the full configured catalog, custom exercises and legacy records.
+  Recognized legacy spelling aliases never merge IDs. Warm-ups are excluded.
+  Streaks default to calendar weeks and derive current/best counts from completed
+  workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
   `components/ShareButton.tsx` (`navigator.share`, else clipboard). Used in `Summary`
   and `HistoryDetail`.
+- **Backup migration inspection** — `storage/legacyBackup.ts` validates v1 backup
+  containers and IDs, reports suspicious timestamps and unresolved references without
+  rewriting source records, and feeds the Settings import confirmation before replacement.
 - **Body-weight log** — `bodyWeights` store + `observe/add/update/deleteBodyWeight`;
-  `components/BodyWeightSection.tsx` on the Activity page.
+  new entries use `TodayEntries` on Today; `BodyWeightRow` in Logbook retains
+  edit/delete controls. Dashboard displays body weight only as a chart. `RunForm` and `BodyWeightForm` await
+  persistence, prevent repeated saves and retain failed drafts.
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping
   `SetRow`.
@@ -95,7 +137,7 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 ## Routes
 
 `/onboarding`, `/` (Dashboard), `/workout/:sessionId`, `/summary/:sessionId`,
-`/activity`, `/history`, `/history/:sessionId`, `/exercise/:exerciseId`, `/templates`,
+`/activity`, `/analytics`, `/history`, `/history/:sessionId`, `/exercise/:exerciseId`, `/templates`,
 `/templates/new`, `/templates/:templateId`, `/settings`. Defined in `src/App.tsx`.
 
 ## Conventions
@@ -147,9 +189,12 @@ not).
 **CI:** `.github/workflows/ci.yml` runs lint → typecheck → test (coverage) → build on every
 push/PR to `main`. Keep all green.
 
-**Known follow-up:** `buildWorkoutRecap` (`shareSummary.ts`) still renders `weight×reps`
-raw — it doesn't use `formatSetValue`, so `time`-metric and zero-weight sets read oddly in
-the shared recap. Align it with `SetRow`/`HistoryDetail` when convenient.
+**PWA:** production builds use prompt-based updates. Defer applying updates during
+active workouts or editing routes. Browser tests use the production preview server;
+Vite development mode does not establish offline/service-worker behavior.
+
+**Toolchain:** Node 22+ is required by the Supabase client. `npm run test:db` runs
+SQL tests against local Supabase/Colima; `npm run test:e2e` runs Chromium offline checks.
 
 ## Gotchas learned the hard way
 
