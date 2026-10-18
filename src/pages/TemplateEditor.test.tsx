@@ -27,3 +27,20 @@ describe('plan exercise identity', () => {
     expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 });
+
+it('requires a category for a new custom exercise and persists the selected category', async () => {
+  const user = userEvent.setup();
+  const bulkCreateExercises = vi.fn().mockResolvedValue(undefined);
+  const createTemplate = vi.fn().mockResolvedValue('new');
+  const repo = { observeExercises: () => of([]), bulkCreateExercises, createTemplate } as unknown as WorkoutRepository;
+  render(<MemoryRouter initialEntries={['/templates/new']}><RepositoryProvider repository={repo}><Routes>
+    <Route path="/templates/new" element={<TemplateEditor />} /><Route path="/templates" element={<p>Saved</p>} />
+  </Routes></RepositoryProvider></MemoryRouter>);
+  await user.type(screen.getByLabelText('Plan name'), 'Custom day');
+  await user.type(screen.getByLabelText('Exercise name 1'), 'My cable movement');
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  await user.click(screen.getByRole('radio', { name: 'Back' }));
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+  expect(bulkCreateExercises).toHaveBeenCalledWith([expect.objectContaining({ name: 'My cable movement', category: 'Back' })]);
+  expect(await screen.findByText('Saved')).toBeInTheDocument();
+});

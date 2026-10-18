@@ -19,6 +19,7 @@ function ExerciseStub() {
 
 function renderPage() {
   const repo = {
+    createExercise: vi.fn().mockResolvedValue('custom'),
     listExercises: vi.fn().mockResolvedValue(exercises),
     observeExercises: () => of(exercises),
   } as unknown as WorkoutRepository;
@@ -33,6 +34,7 @@ function renderPage() {
       </RepositoryProvider>
     </MemoryRouter>,
   );
+  return repo;
 }
 
 describe('Exercises page', () => {
@@ -50,5 +52,15 @@ describe('Exercises page', () => {
 
     await user.click(await screen.findByRole('button', { name: /squat/i }));
     expect(screen.getByText('exercise page: squat')).toBeInTheDocument();
+  });
+
+  it('asks for a category before creating a custom exercise', async () => {
+    const user = userEvent.setup(); const repo = renderPage();
+    await user.click(screen.getByText('Manage exercise library'));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'My movement');
+    expect(screen.getByRole('button', { name: 'Create exercise' })).toBeDisabled();
+    await user.click(screen.getByRole('radio', { name: 'Compound' }));
+    await user.click(screen.getByRole('button', { name: 'Create exercise' }));
+    expect(repo.createExercise).toHaveBeenCalledWith(expect.objectContaining({ name: 'My movement', category: 'Compound' }));
   });
 });

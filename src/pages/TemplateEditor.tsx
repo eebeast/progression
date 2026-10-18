@@ -9,10 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Stepper } from '@/components/Stepper';
+import { CategoryPicker } from '@/components/CategoryPicker';
+import { configuredCategory } from '@/utils/muscleGroups';
 import { cn } from '@/lib/utils';
-import type { Exercise, Metric, TemplateExercise } from '@/types';
+import type { Exercise, ExerciseCategory, Metric, TemplateExercise } from '@/types';
 
 interface EditRow {
+  category?: ExerciseCategory;
   key: string;
   exerciseId?: string;
   confirmedDistinct?: boolean;
@@ -92,7 +95,7 @@ export default function TemplateEditor() {
   };
 
   const validRows = rows.filter((r) => r.name.trim().length > 0);
-  const canSave = name.trim().length > 0 && validRows.length > 0;
+  const canSave = name.trim().length > 0 && validRows.length > 0 && validRows.every((row) => row.exerciseId || row.category);
 
   const save = async () => {
     if (!canSave || saving) return;
@@ -103,7 +106,8 @@ export default function TemplateEditor() {
         const matches = library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === row.name.trim().toLowerCase());
         if (!row.exerciseId && matches.length && !row.confirmedDistinct) throw new Error('Reuse a matching exercise or confirm a distinct movement.');
         const id = row.exerciseId ?? newId();
-        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), createdAt: Date.now() });
+        if (!row.exerciseId && !row.category) throw new Error('Choose a category for each new exercise.');
+        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), category: row.category, createdAt: Date.now() });
         return { assignmentId: row.key, exerciseId: id, name: row.name.trim(), targetSets: row.targetSets,
           restSeconds: row.restSeconds, targetRepRange: row.targetRepRange.trim() || '–', metric: row.metric, order };
       });
@@ -189,7 +193,7 @@ export default function TemplateEditor() {
                   onChange={(event) => {
                     const value = event.target.value;
                     const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === value.trim().toLowerCase());
-                    updateRow(r.key, { name: value, exerciseId: matches.length === 1 ? matches[0].id : undefined, confirmedDistinct: false });
+                    updateRow(r.key, { name: value, exerciseId: matches.length === 1 ? matches[0].id : undefined, category: configuredCategory(value), confirmedDistinct: false });
                   }}
                   placeholder="Exercise name"
                   className="flex-1"
@@ -210,6 +214,7 @@ export default function TemplateEditor() {
                   <Button key={e.id} variant="outline" onClick={() => updateRow(r.key, { exerciseId: e.id, name: e.name })}>Use existing {e.name}</Button>)}
                 <label><input type="checkbox" checked={!!r.confirmedDistinct} onChange={(e) => updateRow(r.key, { confirmedDistinct: e.target.checked })} /> This is a distinct movement</label>
               </div>}
+              {!r.exerciseId && <div className="mb-4"><CategoryPicker value={r.category} onChange={(category) => updateRow(r.key, { category })} /></div>}
               <div className="mb-3 flex rounded-lg border border-border p-1">
                 {(['reps', 'time'] as Metric[]).map((m) => (
                   <button
