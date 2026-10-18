@@ -53,12 +53,14 @@ describe('Workout prescriptions', () => {
     expect(observeTemplate).not.toHaveBeenCalled();
   });
 
-  it('shows exercise entry immediately without rest timer controls', async () => {
+  it('keeps the workout focused on planned exercises without add-exercise or timer controls', async () => {
     showWorkout({ ...session, restEndsAt: Date.now() + 60_000,
       exercises: exercises.map((exercise) => ({ ...exercise, restSeconds: 60 })),
     });
-    expect(await screen.findByRole('textbox', { name: 'Exercise name' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Add to workout' })).toBeVisible();
+    expect(await screen.findByText('Original squat')).toBeVisible();
+    expect(screen.queryByText('Add exercise to this workout')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Exercise name' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to workout' })).not.toBeInTheDocument();
     expect(screen.queryByText('Rest timer')).not.toBeInTheDocument();
     expect(screen.queryByRole('timer')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start timer' })).not.toBeInTheDocument();

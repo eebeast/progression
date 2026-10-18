@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useCloud } from '@/auth/CloudProvider';
-import { SessionExercisePicker } from '@/components/SessionExercisePicker';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Check, SkipForward, Flag } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
@@ -365,7 +364,6 @@ export default function Workout() {
             </div>
           )}
 
-          {session.exercises && <SessionExercisePicker sessionId={sessionId} onAdded={() => setIndex(exercises.length)} />}
           {allLogs.length > 0 && <Button variant="ghost" disabled={saving} onClick={undoLastSet}>Undo last saved set</Button>}
           <div className="flex-1" />
 
