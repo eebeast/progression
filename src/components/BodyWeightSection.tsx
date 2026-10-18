@@ -16,18 +16,20 @@ const WEIGHT_STEP = 0.5;
 interface BodyWeightSectionProps {
   entries: BodyWeightEntry[];
   unit: Unit;
-  onAdd: (input: { date: number; weight: number }) => void;
+  onAdd: (input: { date: number; weight: number }) => void | Promise<unknown>;
+  allowAdd?: boolean;
   onUpdate: (id: string, patch: { date: number; weight: number }) => void;
   onDelete: (id: string) => void;
 }
 
-/** The "Body weight" log on the Activity page: a plain list plus an add form. */
+/** Historical weight entries; Activity hides creation because new entries live on Today. */
 export function BodyWeightSection({
   entries,
   unit,
   onAdd,
   onUpdate,
   onDelete,
+  allowAdd = true,
 }: BodyWeightSectionProps) {
   const [showForm, setShowForm] = React.useState(false);
 
@@ -35,7 +37,7 @@ export function BodyWeightSection({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground">Body weight</h3>
-        {!showForm && (
+        {allowAdd && !showForm && (
           <Button size="sm" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" />
             Add entry
@@ -47,8 +49,8 @@ export function BodyWeightSection({
         <BodyWeightForm
           unit={unit}
           defaultWeight={entries[0]?.weight ?? 0}
-          onSave={(input) => {
-            onAdd(input);
+          onSave={async (input) => {
+            await onAdd(input);
             setShowForm(false);
           }}
           onCancel={() => setShowForm(false)}
@@ -60,7 +62,7 @@ export function BodyWeightSection({
             <EmptyState
               icon={<Scale className="h-9 w-9" />}
               title="No entries yet"
-              description="Log your weight to keep a simple record over time."
+              description={allowAdd ? 'Log your weight to keep a simple record over time.' : 'Add body weight from the Today tab.'}
             />
           )
         : (
@@ -83,13 +85,23 @@ export function BodyWeightSection({
 interface BodyWeightFormProps {
   unit: Unit;
   defaultWeight: number;
-  onSave: (input: { date: number; weight: number }) => void;
+  onSave: (input: { date: number; weight: number }) => void | Promise<unknown>;
   onCancel: () => void;
 }
 
-function BodyWeightForm({ unit, defaultWeight, onSave, onCancel }: BodyWeightFormProps) {
+export function BodyWeightForm({ unit, defaultWeight, onSave, onCancel }: BodyWeightFormProps) {
   const [key, setKey] = React.useState(() => todayKey());
   const [weight, setWeight] = React.useState(defaultWeight);
+  const savingRef = React.useRef(false);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string>();
+  const save = async () => {
+    if (!Number.isFinite(weight) || weight <= 0 || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setError(undefined);
+    try { await onSave({ date: keyToLocalMidnight(key), weight }); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Body weight could not be saved.'); }
+    finally { savingRef.current = false; setSaving(false); }
+  };
 
   return (
     <Card>
@@ -105,16 +117,17 @@ function BodyWeightForm({ unit, defaultWeight, onSave, onCancel }: BodyWeightFor
           />
         </div>
         <Stepper label="Weight" value={weight} onChange={setWeight} step={WEIGHT_STEP} unit={unit} decimal />
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex gap-2">
-          <Button variant="secondary" className="flex-1" onClick={onCancel}>
+          <Button variant="secondary" className="flex-1" disabled={saving} onClick={onCancel}>
             Cancel
           </Button>
           <Button
             className="flex-1"
-            disabled={weight <= 0}
-            onClick={() => onSave({ date: keyToLocalMidnight(key), weight })}
+            disabled={saving || !Number.isFinite(weight) || weight <= 0}
+            onClick={save}
           >
-            Save
+            {saving ? 'Saving…' : 'Save weight'}
           </Button>
         </div>
       </CardContent>
