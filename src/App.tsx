@@ -5,6 +5,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { AppShell } from '@/components/AppShell';
 import type { Theme } from '@/types';
 
+import Analytics from '@/pages/Analytics';
 import Dashboard from '@/pages/Dashboard';
 import Workout from '@/pages/Workout';
 import Summary from '@/pages/Summary';
@@ -57,6 +58,8 @@ export default function App() {
     return <div className="min-h-[100dvh] bg-background" />;
   }
 
+  if (settings.userName && location.pathname === '/onboarding') return <Navigate to="/" replace />;
+
   // Force onboarding until a name is set.
   if (!settings.userName && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
@@ -69,6 +72,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/workout/:sessionId" element={<Workout />} />
         <Route path="/summary/:sessionId" element={<Summary />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/activity" element={<Activity />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:sessionId" element={<HistoryDetail />} />

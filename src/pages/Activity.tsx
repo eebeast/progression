@@ -66,6 +66,7 @@ export default function Activity() {
       <PageHeader title="Activity" />
 
       <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-5">
+        <button className="self-end text-sm font-semibold text-primary" onClick={() => navigate('/analytics')}>View activity overview</button>
         {/* 1) Streaks + weekly goal */}
         <StreakHeader
           current={current}
