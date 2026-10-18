@@ -98,8 +98,8 @@ export interface WorkoutRepository {
   listExercises(): Promise<Exercise[]>;
   bulkCreateExercises(list: Exercise[]): Promise<void>;
   observeExercises(): Observable<Exercise[]>;
-  createExercise(input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string>;
-  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void>;
+  createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string>;
+  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void>;
   previewExerciseMerge(sourceId: string, targetId: string): Promise<{ templates: number; sessions: number; sets: number }>;
   mergeExercises(sourceId: string, targetId: string): Promise<void>;
 

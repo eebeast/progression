@@ -122,6 +122,12 @@ describe('IndexedDB persistence', () => {
 });
 
 describe('canonical exercise management', () => {
+  it('persists explicit exercise categories through backup export', async () => {
+    const id = await repo.createExercise({ name: 'My movement', category: 'Compound' });
+    expect((await repo.createBackup()).data.exercises.find((exercise) => exercise.id === id)?.category).toBe('Compound');
+    await repo.updateExercise(id, { category: 'Back' });
+    expect((await repo.listExercises()).find((exercise) => exercise.id === id)?.category).toBe('Back');
+  });
   it('renames future plans while preserving session and set name snapshots', async () => {
     const id = await repo.startSession(template);
     await repo.updateExercise('exercise', { name: 'Barbell squat', primaryMuscle: 'Quads' });

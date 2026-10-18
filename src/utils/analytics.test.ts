@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityTimeline, calendarRange, customRange, summarizeGym, summarizeRuns } from './analytics';
+import { activityTimeline, calendarRange, categoryActivity, customRange, summarizeGym, summarizeRuns } from './analytics';
 import type { ExerciseLog, Run, WorkoutSession } from '@/types';
 
 describe('calendar analytics', () => {
@@ -18,7 +18,7 @@ describe('calendar analytics', () => {
       { sessionId: 'complete', exerciseId: 'e', isWarmup: true },
       { sessionId: 'active', exerciseId: 'e' },
     ] as ExerciseLog[];
-    expect(summarizeGym(sessions, logs, [], { from: 0, to: 3 })).toMatchObject({ sessions: 2, workingSets: 1, byMuscle: [['Unspecified', 1]] });
+    expect(summarizeGym(sessions, logs, [], { from: 0, to: 3 })).toMatchObject({ sessions: 2, workingSets: 1, byMuscle: [['Legs', 1]] });
     expect(summarizeGym(sessions, logs, [], { from: 0, to: 3 }, { exerciseId: 'e' }).sessions).toBe(1);
   });
   it('retains incomplete runs in counts but excludes unavailable values and invalid pace pairs', () => {
@@ -59,5 +59,32 @@ describe('calendar analytics', () => {
     expect(summarizeGym(sessions, logs, exercises, range).byMuscle).toEqual([['Back', 1], ['Legs', 1]]);
     expect(summarizeGym(sessions, logs, exercises, range, { muscle: 'Legs' }).workingSets).toBe(1);
     expect(activityTimeline(sessions, logs, exercises, [], range, { muscle: 'Back' })[0].workingSets).toBe(1);
+  });
+
+  it('shows a calendar year as twelve monthly buckets, including leap years', () => {
+    const range = calendarRange('year', new Date(2024, 5, 10));
+    expect(range).toEqual({ from: new Date(2024, 0, 1).getTime(), to: new Date(2025, 0, 1).getTime() });
+    const runs = [{ date: new Date(2024, 1, 29).getTime(), distanceKm: 5 }, { date: new Date(2024, 11, 31).getTime(), distanceKm: 7 }] as Run[];
+    const points = activityTimeline([], [], [], runs, range);
+    expect(points).toHaveLength(12);
+    expect(points[1]).toMatchObject({ date: new Date(2024, 1, 1).getTime(), through: new Date(2024, 2, 1).getTime() - 1, distanceKm: 5 });
+    expect(points[11].distanceKm).toBe(7);
+  });
+
+  it('counts a workout only once per category and includes all six configured categories', () => {
+    const sessions = [{ id: 's', status: 'completed', date: 1 }] as WorkoutSession[];
+    const logs = [{ sessionId: 's', exerciseId: 'e', exerciseName: 'Bench Press' }, { sessionId: 's', exerciseId: 'e', exerciseName: 'Bench Press' }, { sessionId: 's', exerciseId: 'x', exerciseName: 'Deadlift' }, { sessionId: 's', exerciseId: 'y', exerciseName: 'Squat', isWarmup: true }] as ExerciseLog[];
+    expect(categoryActivity(sessions, logs, [], { from: 0, to: 2 }).map(({ category, workouts }) => ({ category, workouts }))).toEqual([
+      { category: 'Chest', workouts: 1 }, { category: 'Legs', workouts: 0 }, { category: 'Back', workouts: 0 }, { category: 'Core', workouts: 0 }, { category: 'Arms', workouts: 0 }, { category: 'Compound', workouts: 1 },
+    ]);
+  });
+
+  it('separates missing category loads from real zero and ignores unclassified records', () => {
+    const sessions = [{ id: 's', status: 'completed', date: 1 }] as WorkoutSession[];
+    const logs = [{ sessionId: 's', exerciseId: 'e', exerciseName: 'Push-ups', weight: 0 }, { sessionId: 's', exerciseId: 'unknown', exerciseName: 'Custom unlabelled move', weight: 200 }] as ExerciseLog[];
+    const rows = categoryActivity(sessions, logs, [], { from: 0, to: 2 });
+    expect(rows.find((row) => row.category === 'Chest')?.heaviestLoad).toBe(0);
+    expect(rows.find((row) => row.category === 'Back')?.heaviestLoad).toBeNull();
+    expect(rows).toHaveLength(6);
   });
 });

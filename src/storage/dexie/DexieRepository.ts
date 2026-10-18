@@ -18,6 +18,7 @@ import type {
 } from '@/types';
 import { newId } from '@/utils/format';
 import { DEFAULT_SETTINGS, PROGRAM } from '@/storage/defaults';
+import { configuredCategory, EXERCISE_CATEGORIES } from '@/utils/muscleGroups';
 import type {
   LastPerformed,
   NewBodyWeightInput,
@@ -340,7 +341,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
             const key = name.toLowerCase();
             let ex = exerciseByName.get(key);
             if (!ex) {
-              ex = { id: newId(), name, createdAt: Date.now() };
+              ex = { id: newId(), name, category: configuredCategory(name), createdAt: Date.now() };
               exerciseByName.set(key, ex);
             }
             return ex;
@@ -392,20 +393,22 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     return liveQuery(() => this.db.exercises.toArray());
   }
 
-  async createExercise(input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string> {
+  async createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string> {
     return this.mutate(async () => {
       if (!input.name.trim()) throw new Error('An exercise needs a name.');
+      if (input.category && !EXERCISE_CATEGORIES.includes(input.category)) throw new Error('Choose a valid exercise category.');
       const id = newId();
       await this.db.exercises.add({ ...input, name: input.name.trim(), id, createdAt: Date.now() });
       return id;
     });
   }
 
-  async updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> {
+  async updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> {
     return this.mutate(async () => {
       const exercise = await this.db.exercises.get(id);
       if (!exercise) throw new Error('Exercise not found.');
       if (patch.name !== undefined && !patch.name.trim()) throw new Error('An exercise needs a name.');
+      if (patch.category && !EXERCISE_CATEGORIES.includes(patch.category)) throw new Error('Choose a valid exercise category.');
       const next = { ...exercise, ...patch, name: patch.name?.trim() ?? exercise.name };
       await this.db.exercises.put(next);
       // Future plan displays follow the canonical name; session/log snapshots do not.
@@ -459,7 +462,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
           const priorId = prior?.exercises.find((row) => row.name === assignment.name)?.exerciseId;
           let exercise = library.find((row) => row.id === priorId && !row.archivedAt) ?? (matches.length === 1 ? matches[0] : undefined);
           if (!exercise) {
-            exercise = { id: newId(), name: assignment.name, createdAt: now };
+            exercise = { id: newId(), name: assignment.name, category: configuredCategory(assignment.name), createdAt: now };
             library.push(exercise); await this.db.exercises.add(exercise);
           }
           exercises.push({ exerciseId: exercise.id, assignmentId: newId(), name: assignment.name,

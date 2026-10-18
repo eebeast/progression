@@ -53,8 +53,8 @@ export class HttpRepository implements WorkoutRepository {
     return TODO();
   }
   observeExercises(): Observable<Exercise[]> { return TODO(); }
-  createExercise(_input: Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>): Promise<string> { return TODO(); }
-  updateExercise(_id: string, _patch: Partial<Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> { return TODO(); }
+  createExercise(_input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string> { return TODO(); }
+  updateExercise(_id: string, _patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> { return TODO(); }
   previewExerciseMerge(_source: string, _target: string): Promise<{ templates: number; sessions: number; sets: number }> { return TODO(); }
   mergeExercises(_source: string, _target: string): Promise<void> { return TODO(); }
 
