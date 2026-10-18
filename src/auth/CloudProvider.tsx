@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { readAccount, saveAccount } from './accountCache';
+import { readAccount, saveAccount, isLocallySignedOut, setLocallySignedOut } from './accountCache';
 import { cloudClient, cloudProject, completeOAuth } from './client';
 import { DexieRepository, dexieRepository } from '@/storage/dexie/DexieRepository';
 import { RepositoryProvider } from '@/storage/RepositoryProvider';
@@ -34,6 +34,7 @@ export function CloudProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     const { data } = cloudClient.auth.onAuthStateChange((_event, session) => {
       if (!alive) return;
+      if (isLocallySignedOut(cloudProject)) { setAccount(null); return; }
       if (session?.user) {
         const identity = { id: session.user.id, email: session.user.email };
         saveAccount(cloudProject, identity); setAccount(identity);
@@ -43,23 +44,23 @@ export function CloudProvider({ children }: { children: React.ReactNode }) {
       const result = await cloudClient!.auth.getSession();
       if (result.error) throw result.error;
       if (alive) {
-        const identity = result.data.session?.user ?? readAccount(cloudProject);
+        const identity = isLocallySignedOut(cloudProject) ? null : result.data.session?.user ?? readAccount(cloudProject);
         if (identity) saveAccount(cloudProject, identity);
         setAccount(identity);
       }
     }).catch((reason: unknown) => {
-      if (alive) { setAccount(readAccount(cloudProject)); setError(reason instanceof Error ? reason.message : 'Sign-in failed'); }
+      if (alive) { setAccount(isLocallySignedOut(cloudProject) ? null : readAccount(cloudProject)); setError(reason instanceof Error ? reason.message : 'Sign-in failed'); }
     }).finally(() => { if (alive) setReady(true); });
     return () => { alive = false; data.subscription.unsubscribe(); };
   }, []);
   if (!ready) return <p className="p-6" role="status">Opening your workout data…</p>;
-  return <AccountScope key={`${cloudProject}/${account?.id ?? 'local'}`} account={account} error={error} setError={setError}>
+  return <AccountScope key={`${cloudProject}/${account?.id ?? 'local'}`} account={account} error={error} setError={setError} onSignedOut={() => setAccount(null)}>
     {children}
   </AccountScope>;
 }
 
-function AccountScope({ account, error, setError, children }: {
-  account: Account | null; error?: string; setError(value?: string): void; children: React.ReactNode;
+function AccountScope({ account, error, setError, onSignedOut, children }: {
+  account: Account | null; error?: string; setError(value?: string): void; onSignedOut(): void; children: React.ReactNode;
 }) {
   const [repo] = React.useState(() => account
     ? new DexieRepository(`progression:${cloudProject}:${account.id}`, `${cloudProject}/${account.id}`)
@@ -100,12 +101,16 @@ function AccountScope({ account, error, setError, children }: {
   const value: CloudContextValue = {
     configured: !!cloudClient, account, status, conflicts, error,
     async signIn() {
+      setLocallySignedOut(cloudProject, false);
       const { error } = await cloudClient!.auth.signInWithOAuth({ provider: 'google',
         options: { redirectTo: `${window.location.origin}/auth/callback` } });
       if (error) throw error;
     },
     async signOut() {
+      setLocallySignedOut(cloudProject, true);
       saveAccount(cloudProject, null);
+      coordinator?.stop();
+      onSignedOut();
       const { error } = await cloudClient!.auth.signOut({ scope: 'local' });
       if (error) throw error;
     },

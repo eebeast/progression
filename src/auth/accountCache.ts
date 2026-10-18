@@ -12,3 +12,13 @@ export function saveAccount(project: string, account: CachedAccount | null): voi
   if (account) localStorage.setItem(cacheKey(project), JSON.stringify(account));
   else localStorage.removeItem(cacheKey(project));
 }
+
+export function isLocallySignedOut(project: string): boolean {
+  try { return localStorage.getItem(`${cacheKey(project)}:signed-out`) === 'true'; } catch { return false; }
+}
+export function setLocallySignedOut(project: string, signedOut: boolean): void {
+  try {
+    if (signedOut) localStorage.setItem(`${cacheKey(project)}:signed-out`, 'true');
+    else localStorage.removeItem(`${cacheKey(project)}:signed-out`);
+  } catch { /* Identity remains scoped in memory when browser storage is unavailable. */ }
+}

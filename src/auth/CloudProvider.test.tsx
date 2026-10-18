@@ -9,7 +9,7 @@ import { useObservable } from '@/hooks/useObservable';
 
 const auth = vi.hoisted(() => ({ account: { id: 'a', email: 'a@example.test' } as { id: string; email: string } | null,
   callback: undefined as ((event: string, session: unknown) => void) | undefined,
-  fail: false,
+  fail: false, signOutFails: false,
 }));
 vi.mock('./client', () => ({
   cloudProject: 'integration-test', completeOAuth: async () => {},
@@ -17,7 +17,7 @@ vi.mock('./client', () => ({
     auth: {
       onAuthStateChange: (callback: typeof auth.callback) => { auth.callback = callback; return { data: { subscription: { unsubscribe() { auth.callback = undefined; } } } }; },
       getSession: async () => ({ data: { session: auth.account ? { user: auth.account } : null }, error: auth.fail ? new Error('Offline') : null }),
-      signOut: async () => { auth.account = null; auth.callback?.('SIGNED_OUT', null); return {}; },
+      signOut: async () => { if (auth.signOutFails) throw new Error('Offline sign-out'); auth.account = null; auth.callback?.('SIGNED_OUT', null); return {}; },
     },
     rpc: async (method: string, args: { mutations?: { baseVersion: number }[] }) => ({ data: method === 'sync_pull'
       ? { changes: [], cursor: 0, hasMore: false }
@@ -30,11 +30,11 @@ function Probe() {
   return <>
     <p>{cloud.account?.email ?? 'Local only'}</p><p>Runs: {rows?.length ?? 0}</p>
     <button onClick={() => repo.createRun({ date: 1, distanceKm: 1, durationSeconds: 300 })}>Add run</button>
-    <button onClick={() => cloud.signOut()}>Sign out</button>
+    <button onClick={() => { void cloud.signOut().catch(() => {}); }}>Sign out</button>
   </>;
 }
 beforeEach(() => {
-  auth.account = { id: crypto.randomUUID(), email: 'a@example.test' }; auth.fail = false;
+  auth.account = { id: crypto.randomUUID(), email: 'a@example.test' }; auth.fail = false; auth.signOutFails = false;
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
@@ -65,4 +65,15 @@ describe('cloud account scope', () => {
     render(<CloudProvider><Probe /></CloudProvider>);
     expect(await screen.findByText('a@example.test')).toBeInTheDocument();
   });
+});
+
+it('hides cached account data on explicit sign-out even if the network request fails', async () => {
+  const user = userEvent.setup(); auth.signOutFails = true;
+  render(<CloudProvider><Probe /></CloudProvider>);
+  await screen.findByText('a@example.test');
+  await user.click(screen.getByText('Sign out'));
+  expect(await screen.findByText('Local only')).toBeInTheDocument();
+  expect(localStorage.getItem('progression:last-account:integration-test:signed-out')).toBe('true');
+  act(() => { auth.callback?.('TOKEN_REFRESHED', { user: auth.account }); });
+  expect(screen.getByText('Local only')).toBeInTheDocument();
 });
