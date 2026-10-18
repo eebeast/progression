@@ -179,12 +179,11 @@ export default function TemplateEditor() {
 
         <div className="flex flex-col gap-3">
           <Label>Exercises</Label>
-          <datalist id="plan-exercise-suggestions">{library.filter((exercise) => !exercise.archivedAt).map((exercise) => <option key={exercise.id} value={exercise.name} />)}</datalist>
           {rows.map((r, i) => (
             <div key={r.key} className="rounded-xl border border-border bg-card p-3">
               <div className="mb-3 flex items-center gap-2">
                 <Input
-                  list="plan-exercise-suggestions"
+                  autoComplete="off"
                   value={r.name}
                   aria-label={`Exercise name ${i + 1}`}
                   onChange={(event) => {

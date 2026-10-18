@@ -15,10 +15,12 @@ describe('plan exercise identity', () => {
         { assignmentId: 'assignment', exerciseId: 'original', name: 'Squat', targetSets: 3, targetRepRange: '8', order: 0 },
       ] }), updateTemplate,
     } as unknown as WorkoutRepository;
-    render(<MemoryRouter initialEntries={['/templates/plan']}><RepositoryProvider repository={repo}>
+    const { container } = render(<MemoryRouter initialEntries={['/templates/plan']}><RepositoryProvider repository={repo}>
       <Routes><Route path="/templates/:templateId" element={<TemplateEditor />} /><Route path="/templates" element={<p>Saved</p>} /></Routes>
     </RepositoryProvider></MemoryRouter>);
     await screen.findByDisplayValue('Legs');
+    expect(container.querySelector('select, datalist, input[list]')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Exercise name 1' })).toHaveAttribute('autocomplete', 'off');
     await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
     expect(updateTemplate).toHaveBeenCalledWith('plan', expect.objectContaining({ exercises: [expect.objectContaining({ exerciseId: 'original', assignmentId: 'assignment' })] }));
     expect(await screen.findByText('Saved')).toBeInTheDocument();
