@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS } from '@/storage/defaults';
 import Activity from './Activity';
 import { dateKey } from '@/utils/activity';
 
-it('keeps charts and a combined streak/calendar card without run or weight record lists', async () => {
+it('keeps charts, a separate streak card and calendar without run or weight record lists', async () => {
   const now = Date.now();
   const repo = {
     observeSettings: () => of(DEFAULT_SETTINGS),
@@ -19,8 +19,11 @@ it('keeps charts and a combined streak/calendar card without run or weight recor
   render(<MemoryRouter><RepositoryProvider repository={repo}><Activity /></RepositoryProvider></MemoryRouter>);
   expect(await screen.findByRole('region', { name: 'Activity over time' })).toBeInTheDocument();
   const streaks = screen.getByRole('region', { name: 'Activity streaks' });
-  expect(within(streaks).getByRole('region', { name: 'Activity calendar' })).toBeInTheDocument();
-  expect(within(streaks).getByRole('link', { name: 'View records' })).toHaveAttribute('href', `/history?date=${dateKey(now)}`);
+  const calendar = screen.getByRole('region', { name: 'Activity calendar' });
+  expect(streaks).toBeInTheDocument();
+  expect(calendar).toBeInTheDocument();
+  expect(within(streaks).queryByRole('region', { name: 'Activity calendar' })).not.toBeInTheDocument();
+  expect(within(calendar).getByRole('link', { name: 'View records' })).toHaveAttribute('href', `/history?date=${dateKey(now)}`);
   expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /75kg/ })).not.toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'Latest body weight' })).not.toBeInTheDocument();
@@ -29,5 +32,5 @@ it('keeps charts and a combined streak/calendar card without run or weight recor
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Custom' }));
   await user.clear(screen.getByLabelText('From'));
-  expect(within(streaks).getByRole('region', { name: 'Activity calendar' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Activity calendar' })).toBeInTheDocument();
 });

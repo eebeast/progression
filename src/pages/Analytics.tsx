@@ -70,13 +70,13 @@ export default function Analytics() {
   return <div>
     <PageHeader title="Dashboard" />
     <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
         <div><h1 className="text-2xl font-bold sm:text-3xl">Training dashboard</h1><p className="mt-1 text-sm text-muted-foreground">{range ? `${dateLabel(range.from)} – ${dateLabel(range.to - 1)}, ${new Date(range.to - 1).getFullYear()}` : 'Choose a date range'}</p></div>
-        <div role="group" aria-label="Period" className="grid grid-cols-2 rounded-xl bg-muted p-1 sm:flex">
-          {([['week', 'This week'], ['month', 'This month'], ['year', 'This year'], ['custom', 'Custom']] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={period === value} onClick={() => setPeriod(value)} className={pill(period === value)}>{label}</button>)}
+        <div role="group" aria-label="Period" className="grid w-full grid-cols-4 gap-1 rounded-xl bg-muted p-1 sm:flex sm:w-auto">
+          {([['week', 'This week', 'Week'], ['month', 'This month', 'Month'], ['year', 'This year', 'Year'], ['custom', 'Custom', 'Custom']] as const).map(([value, label, compactLabel]) => <button key={value} type="button" aria-label={label} aria-pressed={period === value} onClick={() => setPeriod(value)} className={cn('min-h-11 min-w-0 rounded-lg px-1.5 py-2 text-xs font-semibold transition-colors sm:flex-none sm:px-3 sm:text-sm', period === value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}><span className="sm:hidden">{compactLabel}</span><span className="hidden sm:inline">{label}</span></button>)}
         </div>
       </div>
-      {period === 'custom' && <div className="grid max-w-md grid-cols-2 gap-3"><label className="text-sm font-medium">From<Input className="mt-1.5" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label><label className="text-sm font-medium">Through<Input className="mt-1.5" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label></div>}
+      {period === 'custom' && <div className="grid w-full max-w-md grid-cols-2 gap-3"><label className="min-w-0 text-sm font-medium">From<Input className="mt-1.5 min-w-0" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label><label className="min-w-0 text-sm font-medium">Through<Input className="mt-1.5 min-w-0" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label></div>}
       {!range && <p role="alert" className="text-sm text-destructive">Choose valid dates with the end on or after the start.</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">Completed workouts and recorded runs.</p>
@@ -90,10 +90,12 @@ export default function Analytics() {
         </div>}
         <div className={cn('flex flex-wrap items-center justify-between gap-3', showFilters && 'mt-3')}><p className="text-xs text-muted-foreground">{filterCount ? `${filterCount} gym ${filterCount === 1 ? 'filter' : 'filters'} applied. ` : ''}Filters apply to workout activity. Historical category loads always include all exercises. Running and body weight show all records in this period.</p>{filterCount > 0 && <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setExercise(''); setMuscle(''); setTemplate(''); }}>Clear filters</button>}</div>
       </section>}
-      <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} calendar={<section aria-label="Activity calendar" className="mx-auto w-full max-w-[336px]">
+      <ActivityStreakCard streak={activityStreaks(sessions, runs, streakPeriod)} period={streakPeriod} onPeriodChange={setStreakPeriod} />
+      <section aria-label="Activity calendar" className={cn(panel, 'p-4 sm:p-5')}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold">Activity calendar</h2><p className="mt-1 text-xs text-muted-foreground">Select a date to view its workout and run records.</p></div></div>
         <Calendar embedded activeKeys={new Set([...sessions.map((session) => dateKey(session.date)), ...runs.map((run) => dateKey(run.date))])} selectedKey={selectedDate} onSelectDay={setSelectedDate} />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground"><span>{dateLabel(keyToLocalMidnight(selectedDate))} · {selectedWorkouts} {selectedWorkouts === 1 ? 'workout' : 'workouts'} · {selectedRuns} {selectedRuns === 1 ? 'run' : 'runs'}</span><Link className="font-semibold text-primary" to={`/history?date=${selectedDate}`}>View records</Link></div>
-      </section>} />
+      </section>
       {gym && running && <>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[

@@ -21,7 +21,7 @@ test('Today records activity, Dashboard charts it, and Logbook filters the recor
   await expect(page.getByRole('region', { name: 'Activity calendar' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
   await expect(page.getByRole('table', { name: 'Body weight recorded values' })).toContainText('75.5 kg');
-  await expect(page.getByRole('region', { name: 'Activity streaks' }).getByRole('region', { name: 'Activity calendar' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Activity streaks' }).getByRole('region', { name: 'Activity calendar' })).toHaveCount(0);
   const calendarDay = page.getByRole('region', { name: 'Activity calendar' }).getByRole('button', { pressed: true });
   const desktopDay = await calendarDay.boundingBox();
   expect(Math.abs(desktopDay!.width - desktopDay!.height)).toBeLessThan(1);
