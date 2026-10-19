@@ -37,8 +37,11 @@ export function OverviewChart({ points, label, unit = '', line = false, perSet =
         </BarChart>}
       </ResponsiveContainer>
     </div>
-    <table className="sr-only"><caption>{label} recorded values</caption><thead><tr><th>Date</th><th>{label}</th></tr></thead>
-      <tbody>{points.map((point, index) => <tr key={`${point.date}-${index}`}><td>{dateLabel(point)}{point.detail && ` · ${point.detail}`}</td><td>{formatValue(point.value)}</td></tr>)}</tbody>
-    </table>
+    {/* Table intrinsic widths can exceed sr-only's 1px box; clip a block wrapper instead. */}
+    <div className="sr-only">
+      <table><caption>{label} recorded values</caption><thead><tr><th>Date</th><th>{label}</th></tr></thead>
+        <tbody>{points.map((point, index) => <tr key={`${point.date}-${index}`}><td>{dateLabel(point)}{point.detail && ` · ${point.detail}`}</td><td>{formatValue(point.value)}</td></tr>)}</tbody>
+      </table>
+    </div>
   </>;
 }
