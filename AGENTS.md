@@ -198,6 +198,9 @@ SQL tests against local Supabase/Colima; `npm run test:e2e` runs Chromium offlin
 
 ## Gotchas learned the hard way
 
+- **Accessible chart tables:** apply `sr-only` to a wrapping `div`, not the table.
+  Table intrinsic widths can override the 1px width and cause mobile horizontal
+  overflow with wider system fonts. Keep the table available to assistive technology.
 - **Async pre-fill in `Workout.tsx`:** `lastWorkout` is fetched into state
   asynchronously. The pre-fill effect depends on the `lastWorkout` object (not
   `session.id`) and guards on `sets[0].exerciseId === current.exerciseId`, because two

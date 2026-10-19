@@ -1,4 +1,25 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function expectNoHorizontalOverflow(page: Page) {
+  await expect.poll(() => page.evaluate(() => {
+    const documentWidth = document.documentElement.scrollWidth;
+    if (documentWidth <= innerWidth) return [];
+    const offenders = [...document.body.querySelectorAll<HTMLElement>('*')]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { element, left: Math.round(rect.left), right: Math.round(rect.right), width: Math.round(rect.width) };
+      })
+      .filter(({ left, right, width }) => width > 0 && (left < -1 || right > innerWidth + 1))
+      .slice(0, 20)
+      .map(({ element, ...rect }) => ({
+        tag: element.tagName.toLowerCase(),
+        className: typeof element.className === 'string' ? element.className : '',
+        text: element.innerText?.slice(0, 80),
+        ...rect,
+      }));
+    return { viewportWidth: innerWidth, documentWidth, offenders };
+  })).toEqual([]);
+}
 
 test('activity dashboard charts are readable on desktop, mobile and dark themes', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
@@ -61,7 +82,13 @@ test('activity dashboard charts are readable on desktop, mobile and dark themes'
   await expect(page.getByRole('table', { name: 'Running distance recorded values' })).toContainText('7.5 km');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo(0, 0));
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expectNoHorizontalOverflow(page);
+  // Wider system fonts and larger text must not let accessible chart tables
+  // expand the document. macOS fonts otherwise conceal this Linux CI failure.
+  const largerTableText = await page.addStyleTag({ content: 'table { font-size: 24px; }' });
+  await expectNoHorizontalOverflow(page);
+  await expect(page.getByRole('table', { name: 'Set load recorded values' })).toContainText('40 kg');
+  await largerTableText.evaluate((element) => element.remove());
   await page.screenshot({ path: test.info().outputPath('activity-mobile.png'), fullPage: true, animations: 'disabled' });
   await page.evaluate(() => { document.documentElement.classList.add('dark'); document.documentElement.dataset.accent = 'purple'; });
   await page.screenshot({ path: test.info().outputPath('activity-dark.png'), fullPage: true, animations: 'disabled' });
