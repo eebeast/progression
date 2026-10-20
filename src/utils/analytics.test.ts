@@ -71,11 +71,11 @@ describe('calendar analytics', () => {
     expect(points[11].distanceKm).toBe(7);
   });
 
-  it('counts a workout only once per category and includes all six configured categories', () => {
+  it('counts a workout only once per category and includes all seven configured categories', () => {
     const sessions = [{ id: 's', status: 'completed', date: 1 }] as WorkoutSession[];
     const logs = [{ sessionId: 's', exerciseId: 'e', exerciseName: 'Bench Press' }, { sessionId: 's', exerciseId: 'e', exerciseName: 'Bench Press' }, { sessionId: 's', exerciseId: 'x', exerciseName: 'Deadlift' }, { sessionId: 's', exerciseId: 'y', exerciseName: 'Squat', isWarmup: true }] as ExerciseLog[];
     expect(categoryActivity(sessions, logs, [], { from: 0, to: 2 }).map(({ category, workouts }) => ({ category, workouts }))).toEqual([
-      { category: 'Chest', workouts: 1 }, { category: 'Legs', workouts: 0 }, { category: 'Back', workouts: 0 }, { category: 'Core', workouts: 0 }, { category: 'Arms', workouts: 0 }, { category: 'Compound', workouts: 1 },
+      { category: 'Chest', workouts: 1 }, { category: 'Legs', workouts: 0 }, { category: 'Back', workouts: 0 }, { category: 'Shoulder', workouts: 0 }, { category: 'Core', workouts: 0 }, { category: 'Arms', workouts: 0 }, { category: 'Compound', workouts: 1 },
     ]);
   });
 
@@ -85,6 +85,6 @@ describe('calendar analytics', () => {
     const rows = categoryActivity(sessions, logs, [], { from: 0, to: 2 });
     expect(rows.find((row) => row.category === 'Chest')?.heaviestLoad).toBe(0);
     expect(rows.find((row) => row.category === 'Back')?.heaviestLoad).toBeNull();
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
   });
 });

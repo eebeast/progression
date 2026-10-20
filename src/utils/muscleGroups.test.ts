@@ -17,10 +17,10 @@ it('gives every predefined movement a display group', () => {
 // Original shipped program: these records predate explicit category metadata.
 it.each([
   ['Bench Press', 'Chest'], ['Incline DB Press', 'Chest'],
-  ['Overhead Press', 'Compound'], ['Lateral Raise', 'Arms'],
+  ['Overhead Press', 'Compound'], ['Lateral Raise', 'Shoulder'],
   ['Skullcrusher', 'Arms'], ['Triceps Pushdown', 'Arms'],
   ['Deadlift', 'Compound'], ['Pull-up', 'Back'], ['Barbell Row', 'Back'],
-  ['Face Pull', 'Back'], ['Barbell Curl', 'Arms'], ['Hammer Curl', 'Arms'],
+  ['Face Pull', 'Shoulder'], ['Barbell Curl', 'Arms'], ['Hammer Curl', 'Arms'],
   ['Squat', 'Legs'], ['Romanian Deadlift', 'Compound'], ['Leg Press', 'Legs'],
   ['Leg Curl', 'Legs'], ['Calf Raise', 'Legs'],
   ['Ab Wheel Rollouts', 'Core'], ['Ab Rollout', 'Core'], ['Situp', 'Core'],
@@ -46,4 +46,11 @@ it('respects saved labels, groups known labels and leaves unknown custom movemen
   expect(muscleGroup(undefined, 'Push ups')).toBe('Chest');
   expect(muscleGroup(undefined, ' weighted pull-ups ')).toBe('Back');
   expect(muscleGroup(undefined, 'Custom movement')).toBe('Unspecified');
+});
+
+it('recognizes shoulder isolation movements as Shoulder while compound presses stay Compound', () => {
+  for (const name of ['Dumbbell Lateral Raise', 'Lateral Raises', 'Reverse Fly', 'Reverse Dumbbell Fly', 'Face Pull', 'Rear Delt Fly', 'Dumbbell Front Raise']) {
+    expect(muscleGroup(undefined, name)).toBe('Shoulder');
+  }
+  expect(muscleGroup(undefined, 'Overhead Press')).toBe('Compound');
 });

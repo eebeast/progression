@@ -75,6 +75,14 @@ class WorkoutDB extends Dexie {
       syncMeta: 'id',
       syncConflicts: 'id',
     });
+    // v5: promote catalogued shoulder-isolation movements out of the old Arms/Back buckets.
+    this.version(5).stores({}).upgrade(async (transaction) => {
+      await transaction.table('exercises').toCollection().modify((exercise: Exercise) => {
+        if ((exercise.category === 'Arms' || exercise.category === 'Back') && configuredCategory(exercise.name) === 'Shoulder') {
+          exercise.category = 'Shoulder';
+        }
+      });
+    });
   }
 }
 

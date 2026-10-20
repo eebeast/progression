@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '@/storage/defaults';
 import type { Observable } from '@/storage/repository';
 import type { BackupShape } from '@/storage/legacyBackup';
 import type { WorkoutTemplate } from '@/types';
+import Dexie from 'dexie';
 
 const repo = new DexieRepository();
 const template: WorkoutTemplate = {
@@ -149,6 +150,31 @@ describe('canonical exercise management', () => {
     expect(await first(repo.observeSessionLogs('session'))).toHaveLength(1);
     expect((await repo.getTemplate('plan'))?.exercises).toHaveLength(1);
   });
+});
+
+it('migrates known shoulder isolations from old categories without changing custom categories', async () => {
+  const name = 'shoulder-category-migration';
+  const oldDb = new Dexie(name);
+  oldDb.version(4).stores({
+    settings: 'id', exercises: 'id, name', templates: 'id, order',
+    sessions: 'id, date, status, templateId', logs: 'id, sessionId, exerciseId, [sessionId+exerciseId], timestamp',
+    runs: 'id, date, createdAt', bodyWeights: 'id, date', outbox: '++queueId, &id',
+    versions: 'key', syncMeta: 'id', syncConflicts: 'id',
+  });
+  await oldDb.table('exercises').bulkAdd([
+    { id: 'lateral', name: 'Dumbbell Lateral Raise', category: 'Arms', createdAt: 1 },
+    { id: 'reverse', name: 'Reverse Fly', category: 'Back', createdAt: 1 },
+    { id: 'custom', name: 'Custom Raise', category: 'Arms', createdAt: 1 },
+  ]);
+  oldDb.close();
+
+  const upgraded = new DexieRepository(name);
+  const result = await upgraded.listExercises();
+  expect(result.find(({ id }) => id === 'lateral')?.category).toBe('Shoulder');
+  expect(result.find(({ id }) => id === 'reverse')?.category).toBe('Shoulder');
+  expect(result.find(({ id }) => id === 'custom')?.category).toBe('Arms');
+  upgraded.close();
+  await Dexie.delete(name);
 });
 
 it('loads the requested four-day plan without changing history and reuses shared exercise identities', async () => {

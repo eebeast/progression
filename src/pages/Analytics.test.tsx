@@ -179,10 +179,11 @@ it('opens the full category with all configured exercises despite an active exer
   expect(within(records).getByRole('heading', { name: 'Hammer Curl' })).toBeVisible();
 });
 
-it('renders every legacy back, legs and core exercise graph with its original sets', async () => {
+it('renders every legacy back, shoulder, legs and core exercise graph with its original sets', async () => {
   const date = new Date(2023, 5, 1).getTime();
   const groups = [
-    { category: 'Back', names: ['Pull-up', 'Face Pull', 'Barbell Row'] },
+    { category: 'Back', names: ['Pull-up', 'Barbell Row'] },
+    { category: 'Shoulder', names: ['Face Pull', 'Reverse Fly', 'Lateral Raise'] },
     { category: 'Legs', names: ['Leg Press', 'Leg Curl', 'Calf Raise'] },
     { category: 'Core', names: ['Ab Wheel Rollouts', 'Situp', 'Hanging Knee Raise'] },
   ];
