@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Progression architecture: quick reference</title><link rel="stylesheet" href="../assets/styles.css"></head><body><main>
+<p class="eyebrow">Progression · printable reference · October 20, 2026</p><h1>Where things live.</h1>
+<p class="lead">Vercel serves files. Your browser saves local records. Supabase Auth identifies the account. PostgreSQL receives accepted sync changes.</p>
+<nav><a href="../lessons/0001-trace-a-workout-set.html">Open the interactive lesson</a><a href="../../glossary.md">Domain glossary</a></nav>
+<section><h2>One complete save</h2><p class="notice">React screen → WorkoutRepository → IndexedDB record + outbox transaction → observable UI update → sync_push → PostgreSQL acknowledgement → sync_pull on another device → that device's IndexedDB → its screen.</p><p>The record/outbox transaction applies in account mode. Local-only saves have no account outbox upload. A failed request leaves the operation pending; a version conflict needs review. Foreground sync is automatic while the app is open/resumed and connected.</p></section>
+<section><h2>Browser stores</h2><div class="table-wrap" tabindex="0"><table><thead><tr><th>Object store</th><th>Key and important fields</th></tr></thead><tbody>
+<tr><td>settings</td><td>singleton ID; userName, unit, theme, accent, heightCm, preferences</td></tr>
+<tr><td>exercises</td><td>id; name, optional category/primaryMuscle/equipment/archive/merge metadata</td></tr>
+<tr><td>templates</td><td>id; name, order, ordered exercise assignments with targets</td></tr>
+<tr><td>sessions</td><td>id; templateId/name, date, status, start/end, prescription snapshot</td></tr>
+<tr><td>logs</td><td>id; sessionId, exerciseId/name, assignmentId, weight, reps, metric, warm-up, set order, timestamp</td></tr>
+<tr><td>runs</td><td>id; date, distanceKm, durationSeconds, notes/feeling</td></tr>
+<tr><td>bodyWeights</td><td>id; date, weight, createdAt</td></tr>
+<tr><td>outbox</td><td>queue key; immutable operation id, mutations, retry/backoff state</td></tr>
+<tr><td>versions</td><td>store/id key; last accepted remote version and payload</td></tr>
+<tr><td>syncMeta</td><td>id; cursor and last-sync metadata</td></tr>
+<tr><td>syncConflicts</td><td>operation id; local operation and competing server records</td></tr>
+</tbody></table></div><p>Local-only database: <code>workout-tracker</code>. Account database: <code>progression:&lt;project-host&gt;:&lt;account-id&gt;</code>. Cloud <code>programOrder</code> is an additional aggregate of ordered template IDs; local template order fields represent it.</p></section>
+<section><h2>Cloud tables</h2><div class="table-wrap" tabindex="0"><table><thead><tr><th>Table</th><th>Columns</th><th>Primary key</th></tr></thead><tbody>
+<tr><td>workout_private.records</td><td>user_id, store, id, version, data JSONB, updated_at</td><td>user_id + store + id</td></tr>
+<tr><td>workout_private.receipts</td><td>user_id, operation_id, request JSONB, result JSONB</td><td>user_id + operation_id</td></tr>
+<tr><td>workout_private.changes</td><td>user_id, sequence, store, id, version, data JSONB</td><td>user_id + sequence</td></tr>
+<tr><td>workout_private.account_state</td><td>user_id, sequence</td><td>user_id</td></tr>
+<tr><td>auth.users</td><td>Supabase-managed authentication account</td><td>id</td></tr>
+</tbody></table></div><p>Each private table's user_id references auth.users. Exercise/session references inside payloads are validated by the push function, not ordinary SQL FK columns. Both sync RPCs require authentication. SQL Editor inspection uses elevated project access.</p></section>
+<section><h2>Inspect without changing anything</h2>
+<p>See live records grouped by logical kind:</p><pre><code>select store, count(*) as live_records
+from workout_private.records
+where data is not null
+group by store
+order by store;</code></pre>
+<p>Inspect the JSON saved for exercises:</p><pre><code>select id, jsonb_pretty(data) as saved_payload
+from workout_private.records
+where store = 'exercises' and data is not null
+limit 10;</code></pre>
+<p>Inspect individual saved sets:</p><pre><code>select id,
+       data-&gt;&gt;'exerciseName' as exercise,
+       data-&gt;&gt;'sessionId' as session,
+       data-&gt;&gt;'weight' as weight,
+       data-&gt;&gt;'reps' as reps_or_seconds
+from workout_private.records
+where store = 'logs' and data is not null
+limit 20;</code></pre>
+<p>These SQL Editor queries can include multiple accounts. Use a specific account filter when comparing a phone's data. A null payload marks deletion; a missing property inside a live payload also extracts as SQL NULL. Those are different cases.</p></section>
+<section><h2>Stored, derived, proposed</h2><div class="grid">
+<div class="card"><h3>Stored</h3><p>Exercise names, performed set values, session dates, run measurements, body weight, saved height and optional explicit category.</p></div>
+<div class="card"><h3>Derived in the app</h3><p>Missing category fallback from known names, PRs, streaks, charts and BMI. Displayed values need not have their own database field.</p></div>
+<div class="card"><h3>Proposed only</h3><p>Shared catalog releases, database-managed categories/presets/aliases, stable category IDs and their migration. No shared catalog tables exist yet.</p></div></div></section>
+<section><h2>Code to inspect next</h2><ul>
+<li><a href="../../../src/pages/Workout.tsx">Workout page</a>: where set entry starts.</li>
+<li><a href="../../../src/storage/repository.ts">Repository interface</a>: the UI's persistence contract.</li>
+<li><a href="../../../src/storage/dexie/DexieRepository.ts">Dexie repository</a>: real local stores and atomic writes.</li>
+<li><a href="../../../src/auth/CloudProvider.tsx">Cloud/account scope</a>: account databases and automatic merge/sync triggers.</li>
+<li><a href="../../../src/storage/sync/coordinator.ts">Sync coordinator</a>: push, retry and pull order.</li>
+<li><a href="../../../src/storage/sync/supabaseTransport.ts">Supabase transport</a>: actual RPC calls.</li>
+<li><a href="../../../supabase/migrations/202610170001_sync.sql">SQL migration</a>: deployed table/function definitions when applied.</li>
+<li><a href="../../../src/utils/muscleGroups.ts">Category resolver</a>: why a missing stored category can still appear in charts.</li>
+</ul></section>
+<footer><p><a href="../lessons/0001-trace-a-workout-set.html#recall">Try the recall questions</a>. Ask the agent to trace any one ID or function with you.</p><p>Primary references: <a href="https://dexie.org/docs/liveQuery%28%29">Dexie observables</a> · <a href="https://supabase.com/docs/guides/database/functions">Supabase RPC functions</a> · <a href="https://www.postgresql.org/docs/current/functions-json.html">PostgreSQL JSON operators</a>. Project-specific claims come from the linked code.</p></footer>
+</main></body></html>

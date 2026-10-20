@@ -147,6 +147,10 @@ until reconciliation succeeds.
 
 ## For contributors and AI agents
 
+To learn how the app works, open the [interactive architecture lesson](docs/learning/lessons/0001-trace-a-workout-set.html)
+and its [printable database reference](docs/learning/reference/architecture-map.html).
+Teaching materials live separately under `docs/learning/`.
+
 Start with [AGENTS.md](AGENTS.md), then the
 [agent development guide](docs/agent-development.md).
 The [current product PRD](docs/product-requirements.md) captures accepted behavior;
