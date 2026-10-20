@@ -5,7 +5,7 @@ export type Feeling = "good" | "ok" | "rough";
 export type SessionStatus = "active" | "completed";
 /** How a set is measured: repetitions, or a hold/duration in seconds. */
 export type Metric = "reps" | "time";
-export type ExerciseCategory = 'Chest' | 'Legs' | 'Back' | 'Core' | 'Arms' | 'Compound';
+export type ExerciseCategory = 'Chest' | 'Legs' | 'Back' | 'Shoulder' | 'Core' | 'Arms' | 'Compound';
 
 export interface Settings {
   id: "singleton";

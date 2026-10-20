@@ -1,6 +1,6 @@
 import type { Exercise, ExerciseCategory } from '@/types';
 
-export const EXERCISE_CATEGORIES: ExerciseCategory[] = ['Chest', 'Legs', 'Back', 'Core', 'Arms', 'Compound'];
+export const EXERCISE_CATEGORIES: ExerciseCategory[] = ['Chest', 'Legs', 'Back', 'Shoulder', 'Core', 'Arms', 'Compound'];
 
 /** Preconfigured organizational categories, not estimates of muscle activation. */
 export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = [
@@ -20,12 +20,12 @@ export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = 
   { name: 'Standing Calf Raises', category: 'Legs' },
   { name: 'Weighted Pull-ups', category: 'Back' },
   { name: 'Pull-ups', category: 'Back' },
-  { name: 'Face Pull', category: 'Back' },
+  { name: 'Face Pull', category: 'Shoulder' },
   { name: 'Barbell Row', category: 'Back' },
   { name: 'One-arm Dumbbell Row', category: 'Back' },
   { name: 'Dumbbell Row', category: 'Back' },
-  { name: 'Reverse Fly', category: 'Back' },
-  { name: 'Reverse Dumbbell Fly', category: 'Back' },
+  { name: 'Reverse Fly', category: 'Shoulder' },
+  { name: 'Reverse Dumbbell Fly', category: 'Shoulder' },
   { name: 'Ab Roller', category: 'Core' },
   { name: 'Dead Bug', category: 'Core' },
   { name: 'Hanging Knee Raises', category: 'Core' },
@@ -57,7 +57,11 @@ export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = 
   { name: 'EZ Bar Skull Crushers', category: 'Arms' },
   { name: 'Overhead Dumbbell Triceps Extension', category: 'Arms' },
   { name: 'Close-grip Bench Press', category: 'Arms' },
-  { name: 'Dumbbell Lateral Raise', category: 'Arms' },
+  { name: 'Dumbbell Lateral Raise', category: 'Shoulder' },
+  { name: 'Lateral Raise', category: 'Shoulder' },
+  { name: 'Dumbbell Front Raise', category: 'Shoulder' },
+  { name: 'Barbell Front Raise', category: 'Shoulder' },
+  { name: 'Rear Delt Fly', category: 'Shoulder' },
   { name: 'Deadlift', category: 'Compound' },
   { name: 'Romanian Deadlift', category: 'Compound' },
   { name: 'Clean and Press', category: 'Compound' },
@@ -73,6 +77,7 @@ const aliases: Record<string, string> = {
   'dumbbell rows': 'dumbbell row', 'db row': 'dumbbell row', 'db rows': 'dumbbell row',
   'db fly': 'dumbbell fly', 'db flyes': 'dumbbell fly', 'dumbbell flyes': 'dumbbell fly',
   'reverse flyes': 'reverse fly', 'lateral raises': 'dumbbell lateral raise',
+  'rear delt flies': 'rear delt fly', 'rear delt raises': 'rear delt fly',
   'dumbbell lateral raises': 'dumbbell lateral raise',
   'single arm triceps extensions': 'single arm triceps extension',
   'single arm triceps overhead extension': 'single arm overhead triceps extension',
@@ -111,7 +116,8 @@ const configured = new Map(EXERCISE_CATALOG.map((exercise) => [exerciseNameKey(e
 export const configuredCategory = (name: string): ExerciseCategory | undefined => configured.get(exerciseNameKey(name));
 const savedGroups: Record<string, ExerciseCategory> = {
   back: 'Back', lats: 'Back', chest: 'Chest', pecs: 'Chest',
-  shoulders: 'Arms', delts: 'Arms', arms: 'Arms', biceps: 'Arms', triceps: 'Arms', forearms: 'Arms',
+  shoulder: 'Shoulder', shoulders: 'Shoulder', delts: 'Shoulder',
+  arms: 'Arms', biceps: 'Arms', triceps: 'Arms', forearms: 'Arms',
   leg: 'Legs', legs: 'Legs', quads: 'Legs', quadriceps: 'Legs', hamstrings: 'Legs', glutes: 'Legs', calves: 'Legs',
   core: 'Core', abs: 'Core', abdominals: 'Core', compound: 'Compound',
 };

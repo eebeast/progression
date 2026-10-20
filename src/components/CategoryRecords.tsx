@@ -31,6 +31,6 @@ export function CategoryRecords({ category, exercises, sessions, logs, unit }: {
       </article>;
     })}</div>
     <Link className="mt-4 inline-block text-sm font-semibold text-primary" to="/templates">Add exercises in your day plan</Link>
-    {category === 'Arms' && <p className="mt-4 text-xs text-muted-foreground">Includes shoulder isolation exercises. Overhead presses appear under Compound.</p>}
+    {category === 'Shoulder' && <p className="mt-4 text-xs text-muted-foreground">Includes shoulder isolation exercises. Overhead presses appear under Compound.</p>}
   </section>;
 }

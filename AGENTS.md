@@ -15,10 +15,16 @@ hosted verification and actual-backup reconciliation are still release gates.
 ## Non-negotiable design principle
 
 **The app only records and recalls facts.** Do **not** add calculated advice or
-estimates: no 1RM formulas, no goal tracking, no BMI, no trend/percentage callouts, no
+estimates: no 1RM formulas, no goal tracking, no trend/percentage callouts, no
 progression "intelligence." Features either store something the user entered or show a
 value directly derived from stored data (e.g. "heaviest weight ever logged"). When in
 doubt, prefer a plain log over a computed suggestion.
+
+**User-approved exception: adult BMI.** Calculate from saved height and the latest
+recorded body weight (active unit; pounds converted to kilograms for this formula
+only). Show CDC adult (20+) categories and flag values outside 18.5–<25 as a screening
+indicator, never a diagnosis or individualized risk score. Explain that BMI cannot
+distinguish muscle from fat. Derive live; never persist BMI or a risk flag.
 
 ## Architecture — the repository seam
 
@@ -44,6 +50,7 @@ Types live in `src/types/index.ts`. Stores are versioned additively in
 
 - **v1** `settings, exercises, templates, sessions, logs` · **v2** `runs` · **v3** `bodyWeights`
   · **v4** `outbox, versions, syncMeta, syncConflicts`
+  · **v5** reclassifies catalogued shoulder isolations from old Arms/Back defaults.
 
 Account repositories use a project/account-specific database. Account mutations and
 their immutable outbox groups commit in one transaction; remote changes bypass that
@@ -106,7 +113,7 @@ concurrent set numbering, and session snapshots.
   card. `/history` (Logbook) owns exercise/run/body-weight records and type filters,
   including an empty Cycles filter until cycling logging exists. Calendar dates link
   to `/history?date=YYYY-MM-DD`. `/analytics` redirects to Dashboard. See
-  `docs/activity-overview.md`. Categories are Chest/Legs/Back/Core/Arms/Compound;
+  `docs/activity-overview.md`. Categories are Chest/Legs/Back/Shoulder/Core/Arms/Compound;
   `Exercise.category?` wins over legacy labels/configured names. New exercise UI
   requires a category. No Unspecified category is displayed. Workout activity has
   week/month/year/custom ranges; category load and individual set-load graphs use
@@ -125,6 +132,10 @@ concurrent set numbering, and session snapshots.
   new entries use `TodayEntries` on Today; `BodyWeightRow` in Logbook retains
   edit/delete controls. Dashboard displays body weight only as a chart. `RunForm` and `BodyWeightForm` await
   persistence, prevent repeated saves and retain failed drafts.
+- **Adult BMI** — `components/BmiSummary.tsx` within Dashboard's body-weight card,
+  backed by `utils/bmi.ts`. Saved `heightCm` and the latest measurement across all
+  history drive the value independently of dashboard date filters. Invalid/missing
+  inputs show links to Settings/Today; future-dated measurements are excluded.
 - **Time/reps metric & drag-reorder** — `ExerciseLog.metric`, `utils/format.ts`
   `formatSetValue`; `components/SetList.tsx` (pointer drag → `reorderSets(ids)`) wrapping
   `SetRow`.

@@ -23,11 +23,12 @@ cells so the month grid keeps its proportions on desktop and mobile.
 
 ## Categories
 
-The six selectable categories are Chest, Legs, Back, Core, Arms and Compound.
+The seven selectable categories are Chest, Legs, Back, Shoulder, Core, Arms and Compound.
 Common exercises are preconfigured in `src/utils/muscleGroups.ts`, including bench
 press and push-ups under Chest, and deadlift and clean and press under Compound.
-Shoulder isolation movements are organized under Arms; overhead pressing is under
-Compound. These are organizational categories, not muscle-activation estimates.
+Shoulder isolation movements such as lateral raises, reverse flyes and face pulls
+are organized under Shoulder; overhead pressing is under Compound. These are
+organizational categories, not muscle-activation estimates.
 
 New exercises require a category in the plan editor and exercise library. Familiar
 names receive an editable preselection. `Exercise.category` is optional for older
@@ -35,10 +36,13 @@ records; reading falls back to recognized saved muscle labels and configured nam
 Recognized legacy spellings (including dumbell/dumbbell and tricep/triceps) and common
 curl, triceps and core movements map to the same display categories. This does not
 merge their exercise IDs or change historical names. Explicit categories always win.
-Original program names are also covered: Pull-up and Face Pull map to Back;
+Original program names are also covered: Pull-up maps to Back; Face Pull maps to Shoulder;
 Leg Press, Leg Curl and Calf Raise to Legs; Incline DB Press to Chest;
-Lateral Raise and Skullcrusher to Arms; Overhead Press to Compound.
-Core aliases include Ab Wheel Rollouts, Ab Rollout and Situp. Keep the original
+Lateral Raise, Reverse Fly and Face Pull to Shoulder; Skullcrusher to Arms;
+Overhead Press to Compound.
+Core aliases include Ab Wheel Rollouts, Ab Rollout and Situp. Dexie migration v5 moves
+catalogued shoulder-isolation exercises from their previous Arms/Back defaults into
+Shoulder while leaving custom categories intact. Keep the original
 program-name regression tests when extending the catalog: unrecognized legacy names
 otherwise disappear from category charts even though their records remain in Logbook.
 The reported four-day personal plan is also a regression fixture
@@ -67,6 +71,15 @@ No schema version bump or destructive data migration is needed.
   weight and reps or duration. Repeated weights and zero added load remain visible.
   Warm-ups and active workouts are excluded. Unknown/invalid weights are not invented.
 - Body weight: the recorded measurements in the selected date period.
+- Adult BMI: beneath the body-weight chart, calculated live from height in Settings
+  and the latest dated weight across all history. Weight follows the active app unit;
+  pounds are converted to kilograms for BMI only. Missing or invalid inputs link to
+  Settings/Today. Edits/deletions update the result; future-dated entries are excluded.
+  Uses [CDC adult (20+) categories](https://www.cdc.gov/bmi/adult-calculator/bmi-categories.html):
+  underweight <18.5, healthy weight 18.5–<25, overweight 25–<30, obesity ≥30.
+  Values outside the reference range have a textual risk indicator. BMI is a
+  screening measure, cannot distinguish muscle from fat, and is not a diagnosis.
+  This is an explicit user-approved exception to the app's facts-only principle.
 
 Date controls apply to workout activity and body weight. Historical load charts are
 explicitly labeled all-history and include every exercise independently of gym filters.

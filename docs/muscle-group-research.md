@@ -34,8 +34,9 @@ standard or an implemented migration:
 | Main category | Examples from the supplied plan |
 | --- | --- |
 | Chest | Bench Press, Incline DB Press, Push Up, DB Fly, Weighted Dips |
-| Back | Pull-up, Barbell Row, Dumbbell Rows; Reverse Fly may use Back with a shoulder association |
-| Shoulders | Overhead Press, Barbell Shoulder Press, Lateral Raise / Lateral Raises |
+| Back | Pull-up, Barbell Row, Dumbbell Rows |
+| Shoulders | Lateral Raise / Lateral Raises, Reverse Fly, Face Pull |
+| Compound | Overhead Press, Barbell Shoulder Press |
 | Arms | Barbell Curl, Dumbbell Curl, Hammer Curl, overhead triceps extensions, skull crushers |
 | Legs | Squat, Sumo Squats, Lunges, Calf Raise; include hips/glutes here for a compact UI |
 | Core | Dead Bugs |
@@ -44,7 +45,9 @@ Keep Compound available as a separate movement tag/filter. For example, Bench
 Press can be Chest + Compound and Squat can be Legs + Compound. Deadlift and
 Romanian Deadlift involve hip/leg and back musculature; a proposed primary Legs
 assignment would be a UI convention with secondary associations, not an exclusive
-anatomical statement. Existing explicit assignments must not silently change.
+anatomical statement. The app keeps user-selected assignments, with a one-time
+migration for catalogued shoulder isolations that previously defaulted to Arms or
+Back because the Shoulder category was unavailable.
 
 “Calthenic” does not identify a specific movement. If it means calisthenics, that
 describes a style of training; its muscle category needs the actual exercise.

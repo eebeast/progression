@@ -25,6 +25,24 @@ function setup(overrides: Partial<WorkoutRepository> = {}) {
   return userEvent.setup();
 }
 
+it('shows BMI from the latest full-history weight independently of dashboard filters', async () => {
+  const now = Date.now();
+  const user = setup({
+    observeSettings: () => of({ ...DEFAULT_SETTINGS, heightCm: 200 }),
+    observeBodyWeights: () => of([
+      { id: 'old', date: now - 500 * 86_400_000, weight: 120, createdAt: now },
+      { id: 'latest', date: now - 400 * 86_400_000, weight: 80, createdAt: now - 1 },
+    ]),
+  });
+  const bmi = await screen.findByRole('region', { name: 'Adult BMI' });
+  expect(bmi).toHaveTextContent('20.0');
+  expect(bmi).toHaveTextContent('Healthy weight');
+  expect(bmi).toHaveTextContent('80 kg');
+  await user.click(screen.getByRole('button', { name: 'This year' }));
+  expect(bmi).toHaveTextContent('20.0');
+  expect(screen.queryByRole('table', { name: 'Body weight recorded values' })).not.toBeInTheDocument();
+});
+
 it('shows every reported plan exercise in its category with all recorded loads', async () => {
   const date = new Date(2023, 5, 1).getTime();
   const user = setup({
@@ -179,10 +197,11 @@ it('opens the full category with all configured exercises despite an active exer
   expect(within(records).getByRole('heading', { name: 'Hammer Curl' })).toBeVisible();
 });
 
-it('renders every legacy back, legs and core exercise graph with its original sets', async () => {
+it('renders every legacy back, shoulder, legs and core exercise graph with its original sets', async () => {
   const date = new Date(2023, 5, 1).getTime();
   const groups = [
-    { category: 'Back', names: ['Pull-up', 'Face Pull', 'Barbell Row'] },
+    { category: 'Back', names: ['Pull-up', 'Barbell Row'] },
+    { category: 'Shoulder', names: ['Face Pull', 'Reverse Fly', 'Lateral Raise'] },
     { category: 'Legs', names: ['Leg Press', 'Leg Curl', 'Calf Raise'] },
     { category: 'Core', names: ['Ab Wheel Rollouts', 'Situp', 'Hanging Knee Raise'] },
   ];

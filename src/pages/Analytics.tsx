@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { CategoryActivityChart } from '@/components/CategoryActivityChart';
 import { CategoryRecords } from '@/components/CategoryRecords';
 import { OverviewChart } from '@/components/OverviewChart';
+import { BmiSummary } from '@/components/BmiSummary';
 import { Calendar } from '@/components/Calendar';
 import { dateKey, todayKey, keyToLocalMidnight } from '@/utils/activity';
 import { ActivityStreakCard } from '@/components/ActivityStreakCard';
@@ -131,6 +132,7 @@ export default function Analytics() {
           <section className={panel} aria-label="Body-weight history">
             <div className="mb-5"><h2 className="font-semibold">Body weight</h2><p className="mt-1 text-xs text-muted-foreground">{measurements.length} {measurements.length === 1 ? 'measurement' : 'measurements'} in this period · {settings.unit}</p></div>
             {measurements.length ? <OverviewChart points={measurements.map((entry) => ({ date: entry.date, value: entry.weight }))} label="Body weight" unit={settings.unit} line /> : <EmptyChart>No body-weight entries in this period. Add a measurement in Today.</EmptyChart>}
+            <BmiSummary heightCm={settings.heightCm} weights={weights} unit={settings.unit} />
           </section>
         </div>
         {selectedCategory && <div ref={recordsRef} className="scroll-mt-20"><CategoryRecords category={selectedCategory} exercises={exercises} sessions={recordSessions} logs={logs} unit={settings.unit} /></div>}
