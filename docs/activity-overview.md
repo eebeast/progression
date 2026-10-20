@@ -58,7 +58,9 @@ saved IDs both have recorded sets, both histories remain visible and no sets are
 merged or rewritten. Weighted and unweighted movements remain separate presets.
 Unknown exercises are retained in history but do not
 create an Unspecified dashboard category. Categorize them in the exercise library.
-No schema version bump or destructive data migration is needed.
+Optional category fields need no schema bump. Dexie v5 is a non-destructive data
+upgrade for the known shoulder-category defaults described above; it is not a
+hosted SQL catalog migration.
 
 ## Charts
 

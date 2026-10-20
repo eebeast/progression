@@ -1,120 +1,168 @@
 # Progression
 
-A local-first workout tracker PWA. It answers two questions well — **what should I train today?** and **what did I actually lift?** — without a backend, a login, or progression "intelligence" getting in the way.
+A local-first workout tracker PWA for recording workouts, reviewing every logged set,
+and seeing your activity across phone and laptop. Use it without an account, or enable
+optional Supabase sync with Google or GitHub sign-in.
 
-All data lives on your device in IndexedDB. Nothing is sent anywhere; there is no account and no sync.
+## What the app does
 
-> **Design principle:** Progression only ever **records and recalls facts.** No
-> 1RM formulas, no goal tracking, no BMI, no trend/percentage callouts, no
-> "intelligence." Everything below is a plain log or a directly-derived fact.
+- **Today** — start a day from the four-day Pull / Push / Legs + Abs / Mix preset,
+  reorder the rotation, and add runs or body-weight measurements.
+- **Workout** — log weight/reps or timed sets, mark warm-ups, recall previous values,
+  edit/reorder sets, undo, and view recorded personal bests. Exercises are managed in
+  the day plan; the workout screen has no add-exercise dropdown or rest timer.
+- **Dashboard** — workout/run charts with week, month, year and custom ranges;
+  separate streak and calendar cards; body-weight history; and category drill-downs
+  showing each exercise's individual recorded set loads across all completed history.
+- **Exercise categories** — Chest, Legs, Back, Shoulder, Core, Arms and Compound.
+  Familiar exercise names are preconfigured; new exercises require a category.
+  Name aliases help organize the catalog without merging recorded identities.
+- **Logbook** — dated workout, run and body-weight records with type/date filters and
+  editing. Cycles currently has an empty filter; cycling logging is not implemented.
+- **Plans and exercises** — reusable exercise identities, editable prescriptions,
+  optional exercise library, archive/merge tools, personal records and top sets.
+- **Settings** — appearance, name, height in cm/in, logging preferences, backups,
+  account status and conflict review. Signed-in online sessions merge local history
+  and sync automatically; no manual refresh/copy/sync buttons are required.
+- **Adult BMI** — beneath the body-weight chart, calculated from saved height and the
+  latest weight, with CDC adult categories and an outside-reference-range notice.
+  This is a screening measure for adults 20+, not a diagnosis; it cannot distinguish
+  muscle from fat.
+- **PWA** — installable on supported browsers, with offline app-shell caching and a
+  deferred update prompt during active workouts or editing.
 
-## Features
+The product favors recorded facts over coaching. Adult BMI is a user-approved
+exception; estimated 1RM, predicted strength, recommended weights and trend advice
+remain outside the current scope.
 
-- **Today** — a Push/Pull/Legs program that suggests the next session based on what you last completed, with upcoming days at a glance. Reorder the queue with the up/down arrows (e.g. swap today and tomorrow) — it persists as your program order.
-- **Workout logging** — big, thumb-friendly weight/rep steppers, last-performed hints per exercise, and a green flash when a set saves. Sets are **drag-to-reorder**, and per-exercise **time-based** logging (seconds) is supported alongside reps.
-- **Warm-up sets** — tag a set as a warm-up with the toggle chip; it renders muted with a "W" badge and is excluded from targets, the progress bar, and personal records, but still recorded.
-- **Personal records** — the best lift on file per exercise (heaviest weight ever, and most reps at that weight), shown as `Best: …` on the Workout screen and the exercise page, with a `🏆 New PR` badge when a set beats the prior record. Derived live, never stored.
-- **Exercise top sets** — tap any exercise name to drill into `/exercise/:id`: its personal record plus the **top 4 sets ever** with the date each was performed. An optional **Exercises tab** (toggle in Settings) lists every exercise to browse these directly.
-- **Progress chart** — the app's single, deliberately minimal chart, on the exercise page: one dot per session in chronological order, toggled between top-set weight and total working sets. A plain plot of logged facts — no trend line, projection, or moving average. Hidden until there are ≥2 sessions.
-- **Share** — a Share button on the Summary and History-detail pages builds a plain-text recap (native share sheet on mobile, clipboard elsewhere).
-- **Activity** — a month calendar with current/best streaks, manual run logging (distance + time) with derived pace/speed, and a **body-weight log** (date + weight, editable list). Completed lifts and runs count as active days toward a weekly goal.
-- **History** — every finished workout and logged run, interleaved most-recent-first; workouts are tappable for the full set-by-set detail, runs are editable inline.
-- **Plans** — edit the built-in templates or build your own.
-- **Settings** — name, light/dark/system theme, accent presets (blue / purple / orange / green), weight increment, weekly goal, an optional Exercises tab, and full JSON export/import backup.
-- **PWA** — installable and works offline.
+## Run locally
 
-## Tech stack
+Use **Node.js 22+**.
 
-- **React 18 + TypeScript + Vite 5**
-- **Tailwind CSS 3** with CSS-variable + `color-mix` design tokens (an Apple-derived palette, WCAG AA)
-- **Dexie 4 / IndexedDB** for storage, exposed reactively via `liveQuery`
-- **React Router 6**, **lucide-react** icons, **recharts** (the lone exercise-progress chart)
-- **vite-plugin-pwa** for the installable/offline shell
-
-## Architecture
-
-The UI never touches Dexie directly. All persistence sits behind a single
-`WorkoutRepository` interface (`src/storage/repository.ts`):
-
-- **Reactive reads** return a minimal, backend-neutral `Observable<T>` (Dexie's
-  `liveQuery` is structurally compatible), consumed by the `useObservable` hook.
-- **Writes** return `Promise`s.
-- The concrete `DexieRepository` (`src/storage/dexie/`) is the only code that imports
-  `dexie`. An `HttpRepository` skeleton (`src/storage/http/`) proves the seam: swapping
-  storage for a real backend means implementing that interface, with no changes to pages
-  or components.
-
-The repository is provided via React context (`RepositoryProvider`), so components pull
-it through `useRepo()`.
-
-```
-src/
-  pages/        route screens (Dashboard, Workout, Summary, Activity, History,
-                HistoryDetail, ExerciseHistory, Templates, Settings, Onboarding)
-  components/   UI primitives + shared widgets (AppShell, Stepper, SetList/SetRow,
-                WarmupToggle, ShareButton, Calendar, RunForm, BodyWeightSection, …)
-  storage/      repository interface + Dexie implementation + HTTP skeleton
-  hooks/        useObservable, useSettings
-  utils/        pure helpers (program, streak math, run metrics, personalRecords,
-                shareSummary, format)
-  types/        shared domain types
+```sh
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-### Dexie schema versions
+Open <http://127.0.0.1:5173/>. No cloud credentials are required for local-only use.
+First launch asks for a name. To check installation/offline behavior, use
+the production build rather than Vite development mode:
 
-The IndexedDB store is versioned additively (`src/storage/dexie/DexieRepository.ts`):
-
-- **v1** — `settings`, `exercises`, `templates`, `sessions`, `logs`
-- **v2** — adds `runs`
-- **v3** — adds `bodyWeights`
-
-Adding a **new store** requires a `this.version(N).stores({...})` bump. Adding a new
-**field** to an existing record (e.g. `ExerciseLog.isWarmup`, `ExerciseLog.metric`) is
-back-compat and needs **no** version bump — read it defensively (`?? default`).
-
-## Getting started
-
-```bash
-npm install
-npm run dev      # start the dev server
+```sh
+npm run build
+npm run preview -- --host 127.0.0.1 --port 4173
 ```
 
-Then open the printed local URL. On first launch a one-screen onboarding asks for your name; everything else is ready to go.
+Open <http://127.0.0.1:4173/> online once before testing offline launch. Different
+origins, ports and browser profiles have separate IndexedDB data.
 
-## Scripts
+## Optional cloud sync and deployment
 
-| Command              | What it does                                        |
-| -------------------- | --------------------------------------------------- |
-| `npm run dev`        | Start the Vite dev server                           |
-| `npm run build`      | `tsc -b` (authoritative typecheck) + `vite build`   |
-| `npm run typecheck`  | `tsc -b` — real typecheck without bundling          |
-| `npm run lint`       | ESLint over the project                             |
-| `npm test`           | Run the Vitest unit suite once                      |
-| `npm run test:watch` | Vitest in watch mode                                |
-| `npm run preview`    | Preview the production build locally                |
+Deploy the Vite frontend to Vercel and use Supabase for authentication/PostgreSQL.
+There is no separate Node backend to deploy. The checked-in Vercel configuration
+handles application-route fallbacks.
 
-> The root `tsconfig` uses project references, so `tsc --noEmit` is a no-op — use
-> `npm run typecheck` (`tsc -b`) or `npm run build` for a real typecheck.
+Copy `.env.example` to ignored `.env.local` for development. Set these **public
+browser variables** for the relevant Vercel environments before rebuilding:
 
-## Testing & CI
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_PUBLISHABLE_KEY
+```
 
-Tested with **Vitest** + **React Testing Library** (jsdom):
+This is Vite, so Vercel integration variables named `NEXT_PUBLIC_*`, `SUPABASE_*`
+or `POSTGRES_*` do not automatically configure the frontend. Never put database
+passwords, service-role keys or OAuth client secrets in `VITE_*` variables.
 
-- **Pure utils** (`src/utils/*.test.ts`) — personal records, program/rotation derivation,
-  the share recap, formatting, run metrics, and streaks.
-- **Leaf components & hooks** (`*.test.tsx`) — behavior via accessible queries and
-  `user-event` (`Stepper`, `SetRow`, `WarmupToggle`, `FeelingPicker`, `ShareButton`,
-  `useObservable`).
+Apply checked-in Supabase migrations to each target database independently of the
+frontend deployment. Configure Google/GitHub providers in Supabase, register their
+Supabase callback URL with each provider, and allow the app's actual
+`/auth/callback` URL in Supabase redirect settings. Frontend environment changes
+require a new build; already-applied SQL migrations do not run on every deployment.
 
-Run `npm test`, or `npm run test:coverage` for a coverage report (v8).
+See [local development and hosted setup](docs/local-development.md) for commands,
+OAuth troubleshooting, safe database inspection and recovery.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs lint → typecheck → test (with coverage) →
-build on every push and pull request to `main`, and uploads the coverage report as an
-artifact.
+## Architecture and data
 
-## Data & privacy
+The UI reads/writes through `WorkoutRepository`, injected by `RepositoryProvider`.
+Reactive reads use backend-neutral observables; writes return promises.
+`DexieRepository` owns IndexedDB. `HttpRepository` is an interface-completeness
+stub, not the production backend.
 
-Everything stays in your browser's IndexedDB on this device. Use **Settings → Export
-backup** to save a JSON snapshot, and **Import backup** to restore it (which replaces all
-current data). Clearing site data or uninstalling the PWA removes your history, so keep a
-backup if it matters.
+Cloud mode still uses local repositories, with one database per project/account.
+Atomic local writes queue an outbox operation; a sync coordinator uses authenticated
+Supabase push/pull RPCs. PostgreSQL is relational, while the current physical schema
+stores versioned entity payloads as JSONB in a private records table. Browser code
+does not query/write that table directly.
+
+Signing in while online merges missing local records into the account, preserves
+account preferences and existing differing records, reports skipped collisions, and
+retains the original local database. Remote tombstones prevent deleted records from
+being reintroduced. Uploads require the app to be open/resumed, online and authenticated;
+records remain pending until acknowledged. Conflict review remains explicit.
+
+IndexedDB versions: v1 workouts/settings/exercises/plans; v2 runs; v3 body weights;
+v4 sync metadata/outbox/conflicts; v5 reclassifies known shoulder isolations from the
+old Arms/Back defaults. Additive optional fields do not require a schema bump.
+
+Weights retain the app's existing active-unit semantics; historical per-entry units
+are unavailable. BMI interprets weight in that active unit and converts pounds only
+inside its formula. Do not infer or rewrite historical units.
+
+## Verification
+
+| Command | Purpose |
+| --- | --- |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Authoritative TypeScript check, `tsc -b` |
+| `npm test` | Vitest/React Testing Library and repository tests |
+| `npm run test:coverage` | Coverage report |
+| `npm run build` | Typecheck and production/PWA build |
+| `npm run preview` | Serve the production build locally |
+| `npm run test:e2e` | Playwright production-browser checks |
+| `npm run test:db` | SQL tests against a running local Supabase stack |
+
+Install Chromium with `npx playwright install chromium` before running browser
+checks. Local database tests require Docker; Colima is supported. See the setup guide
+for the local Supabase command.
+
+CI has separate check, browser and database jobs on pushes/PRs to `main`.
+The latest code verification on October 20, 2026 passed 257 unit/integration tests,
+four Chromium scenarios and the production build. Lint had no errors and existing
+warnings. SQL tests were last documented as 19 passing locally on October 18; they
+were not rerun for the BMI or documentation changes. See the
+[status checklist](docs/todo.md) for unverified hosted/device and migration work.
+
+## Backups and privacy
+
+Local-only mode keeps workout data in this browser. Cloud-enabled builds initialize
+Supabase authentication; signing in enables account-data upload. Keep JSON exports
+before clearing site data, changing deployment origins, or switching storage strategy.
+
+Local-only imports replace current data after confirmation. Account imports merge
+entity records with collision checks; they never replay a foreign outbox. Recovery
+exports retain sync state and conflict information. Preserve the original export
+until reconciliation succeeds.
+
+## For contributors and AI agents
+
+Start with [AGENTS.md](AGENTS.md), then the
+[agent development guide](docs/agent-development.md).
+The [current product PRD](docs/product-requirements.md) captures accepted behavior;
+the [glossary](docs/glossary.md) keeps domain terminology consistent.
+The PRD is also published as [GitHub issue #23](https://github.com/eebeast/progression/issues/23)
+with the `ready-for-agent` label; the repository copy is the maintained reference.
+Obsolete scaffolding/audit/planning files have been removed; Git history retains them.
+Do not rebuild delivered features or restore removed controls.
+
+| Current document | Purpose |
+| --- | --- |
+| [Product PRD](docs/product-requirements.md) | Accepted behavior and scope |
+| [Agent guide](docs/agent-development.md) | Code map, workflow and test seams |
+| [Glossary](docs/glossary.md) | Domain vocabulary |
+| [Local development](docs/local-development.md) | Browser/cloud/deployment setup and recovery |
+| [Open work](docs/todo.md) | Remaining tasks only |
+| [Dashboard and Logbook](docs/activity-overview.md) | Charts, filters, categories and BMI |
+| [Storage decision](docs/storage-architecture-decision.md) | Architecture and sync invariants |
+| [Muscle-group research](docs/muscle-group-research.md) | Category research provenance |

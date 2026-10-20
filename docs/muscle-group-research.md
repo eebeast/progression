@@ -3,6 +3,12 @@
 Research date: 2026-10-18. This records research and a proposed app organization;
 it does not change the implemented taxonomy or historical records.
 
+Current implementation now includes Shoulder as a single-choice app category.
+Overhead presses remain Compound, and known shoulder isolations were reclassified
+by local migration v5. Use [Dashboard requirements](activity-overview.md) and the
+[current PRD](product-requirements.md) for the accepted implementation; the broader
+multi-tag proposal below is research context, not an approved next feature.
+
 ## What the sources establish
 
 - Mayo Clinic lists shoulders, arms, chest, abdomen, back, hips and legs as major

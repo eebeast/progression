@@ -1,11 +1,26 @@
 # Storage architecture decision
 
-Status: Supabase selected by the user; Google sign-in confirmed.
-No hosted infrastructure created or production cutover.
-Reviewed October 17, 2026. The user is willing to create a free backend account.
-Authentication preference: Google sign-in.
+Status: accepted. Supabase + Dexie selected; Google and GitHub sign-in implemented.
+Original decision October 17, 2026; amended October 20, 2026 after user feedback.
+The user reports Vercel/Supabase/OAuth setup. Hosted end-to-end operation and actual
+legacy-export reconciliation are not established by this decision document.
 
-The executable stage plan is [supabase-implementation-plan.md](./supabase-implementation-plan.md).
+Read the [current PRD](product-requirements.md), [agent guide](agent-development.md)
+and [open tasks](todo.md) alongside this decision. Obsolete stage plans are retained
+in Git history rather than active documentation.
+
+## Accepted amendments
+
+- **Automatic local-history merge:** the user removed manual refresh/copy controls.
+  When signed in and online, check account state and merge original local records
+  automatically. Preserve account preferences, skip/report differing IDs, respect
+  accepted tombstones and retain the original local database. This supersedes the
+  original manual claim requirement.
+- **Providers:** support both Google and GitHub through Supabase Auth.
+- **BMI:** adult BMI from saved height/latest weight is a user-approved exception
+  to the facts-only rule; never turn the screening category into a diagnosis.
+- **Taxonomy:** Shoulder is now included. Categories remain code-configured and
+  stored on exercise payloads; a shared SQL taxonomy is not yet implemented.
 
 ## Options evaluated
 
@@ -33,26 +48,24 @@ Sources checked for this decision:
 
 Keep `WorkoutRepository` as the UI seam. Remote access belongs behind a transport, not in components. Local record mutation and outbox insertion must commit in one IndexedDB transaction. Outbox operations carry account ID, immutable operation ID, entity ID, base revision and payload. Remote acknowledgements are per operation. A successful HTTP request alone must never clear the queue.
 
-Use separate account databases; retain the existing `workout-tracker` database as an unclaimed local source. Signing in must not implicitly upload it. Require an explicit claim/import workflow and backup before copying its records. Signing out switches away from the account database; queued operations stay partitioned by their original account.
+Use separate account databases; retain the existing `workout-tracker` database as
+the original local source. Signing in while online triggers the non-destructive
+automatic merge described above. Signing out switches away from the account database;
+queued operations stay partitioned by their original account.
 
-Proposed remote tables: account settings, exercises, templates, sessions, sets, runs, body weights; operation receipts and an account change journal. All entity keys include ownership, and child relationships must verify the same owner. Preserve source IDs, including non-UUID legacy IDs. Template assignments can initially stay ordered JSON within a template, protected by the template revision. New sessions snapshot their ordered exercises and prescriptions. Existing log names and session template names remain snapshots.
+Logical entities include account settings, exercises, templates, sessions, sets,
+runs and body weights. The implemented physical schema uses private JSONB records,
+receipts, account state and an ordered change journal (see refinement below).
+All entity keys include ownership, and child relationships verify the same owner.
+Preserve source IDs, including non-UUID legacy IDs. Template assignments stay ordered
+JSON within a template protected by its revision. New sessions snapshot exercises
+and prescriptions; logged exercise/session names retain historical meaning.
 
 Mutations use authenticated SQL RPCs, version checks and receipts in one transaction. RPCs derive ownership from `auth.uid()`, never from a submitted owner ID. Retain tombstones and conflict payloads. Serialize writes per account before assigning change sequence values so a pull cursor cannot skip a transaction that commits later. Pull pages use a stable cursor. New clients bootstrap through that same ordered journal. Do not expose direct write access that bypasses this protocol. Enable RLS and test unauthenticated and cross-account denial.
 
 Preserve legacy weight numbers and their active-unit semantics. Do not retrospectively assume kilograms: historical per-entry units are unavailable. A canonical-unit migration requires an explicit user decision and cannot infer old units. Keep analytics factual; estimates, goals, rolling averages and advice in the broader plan are excluded under AGENTS.md.
 
-## Rollout and remaining gates
-
-1. Finish local repository regression tests and historical snapshots.
-2. Obtain the actual legacy export; checksum the untouched file and reconcile all records. It is not present in the repository during this audit.
-3. Add SQL migrations, authentication, account-scoped local storage and tested push/pull transport.
-4. Exercise retries, conflicts, restart persistence, deletion and account switching with two clients before enabling production sync.
-5. Preserve the old local database and downloadable backups throughout cutover. To roll back before cutover, keep using the local deployment. After cutover, export account data before reverting; a code rollback alone does not move cloud changes back into the original local database.
-
-Creating a free Supabase project is the next external setup step. Browser configuration needs only its project URL and public publishable key. Administrative/service-role keys must never enter the browser or repository.
-
-
-## Implementation refinement
+## Implemented physical schema and recovery
 
 The local implementation uses private account-scoped JSON payload records plus
 receipts and an ordered change journal, rather than one remote SQL table per legacy
@@ -61,3 +74,26 @@ adapter small. Authenticated RPCs validate revisions and same-owner references f
 an entire atomic group; direct browser table access is revoked and RLS is enabled.
 Full per-field legacy validation, a persisted migration journal and real-export
 reconciliation remain release gates. See `todo.md` for verification boundaries.
+
+Private records use `(user_id, store, id)` keys with a server revision, JSONB data
+and update timestamp. A null payload represents a versioned deletion. Physical
+tables are `workout_private.records`, `account_state`, `receipts` and `changes`;
+public authenticated `sync_push`/`sync_pull` functions expose the protocol. The
+checked-in SQL migration/tests and typed transport are the contract, not an older
+proposal for per-entity remote tables.
+
+Imports preserve IDs and unknown legacy payload fields. Account imports merge
+records and produce fresh bounded parent-first operations, never replaying another
+database's outbox. Recovery exports preserve versions, pending intent and conflicts.
+Local-only replacement imports remain explicitly confirmed and transactional.
+
+Preserve the original local database and downloadable backups throughout cutover.
+After cloud edits begin, export current account data and reconcile pending work
+before reverting; a code rollback alone does not copy cloud changes back into the
+original local database. Never delete source records as release cleanup.
+
+Browser configuration uses only the project URL and public publishable key.
+Administrative/service-role keys stay out of the browser/repository. Provider
+pricing/quota comparisons above are dated research, not current quota guarantees.
+The remaining task list contains only open work; local validation evidence is in
+the setup guide.
