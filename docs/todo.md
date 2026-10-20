@@ -31,8 +31,9 @@ do not repeat project provisioning by default.
 
 ## Follow-up features and decisions
 
-- [ ] Design shared database ownership of the category catalog and its migration.
-  Today the list/presets are code-defined; each exercise payload stores its category.
+- [ ] Review and implement the [proposed shared catalog design](storage-architecture-decision.md#proposed-shared-catalog-design):
+  maintainer-owned reference releases, repository-backed offline snapshots, stable
+  IDs and a receipt-safe legacy migration. Design is documented; runtime remains code-defined.
 - [ ] Review already-synced shoulder categories alongside the local v5 upgrade;
   a global remote taxonomy migration has not occurred.
 - [ ] Resolve per-entry weight-unit provenance before canonical-unit history or

@@ -196,6 +196,9 @@ obsolete proposals from active docs and keep validation evidence separate from i
 - Most product behavior above is implemented. The open task list identifies
   remaining migration, hosted/device validation and taxonomy follow-up. An agent
   should inspect that list before choosing a task rather than implement this PRD again.
+- A [proposed shared catalog design](storage-architecture-decision.md#proposed-shared-catalog-design)
+  now defines maintainer ownership, stable IDs, offline snapshots and legacy
+  compatibility. It is a design deliverable; shared database ownership is not yet runtime behavior.
 - The user reports configuring Vercel, a hosted Supabase project, database migration
   and OAuth credentials. Successful end-to-end production operation has not been
   independently established by this documentation update.

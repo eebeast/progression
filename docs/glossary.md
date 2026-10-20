@@ -12,6 +12,16 @@ can differ from legacy module names.
 | Exercise alias | An interchangeable name used for catalog matching/display; never permission to merge logged IDs |
 | Exercise category | One organizational bucket: Chest, Legs, Back, Shoulder, Core, Arms or Compound |
 | Compound | An app navigation bucket for configured lifts such as deadlift/overhead press; not an anatomical muscle group |
+| Shared catalog | Maintainer-published reference categories, presets and aliases; does not contain user workout records (proposed ownership model) |
+| Catalog release | One complete immutable published version of shared reference data |
+| Category ID | A durable category identity independent of its display label; proposed replacement for label-only references |
+| Exercise preset | A shared reference movement and its default category; separate from each user's exercise definition |
+| Preset binding | A reference linking a user exercise to an unambiguous shared preset without changing its identity |
+| Category assignment | The category selected for a user exercise, including whether it is a user choice, known catalog default or preserved legacy value |
+| Category override | A user's category choice for their own exercise; takes precedence over a preset default |
+| Catalog snapshot | A complete release copied locally for consistent offline lookup and display |
+| Retired definition | A category/preset no longer suggested for new selection but retained for historical and offline references |
+| Reconciliation candidate | An uncertain legacy mapping needing review, rather than permission to rewrite stored meaning |
 | Plan / workout template | An ordered training day with exercise assignments and prescriptions |
 | Assignment | A particular placement of an exercise within a plan/session; repeated placements can share exercise ID but have distinct assignment IDs |
 | Prescription | Planned sets, rep/time range and ordering; not a performed result |

@@ -53,7 +53,8 @@ the app. Use the [glossary](glossary.md) for domain terms.
   workout/body-weight chart period and optional gym filters.
 - **Category definitions currently live in code.** Exercise records persist their
   chosen category and sync with the record. There is no shared SQL category/catalog
-  lookup table. Moving taxonomy ownership to the database remains future work.
+  lookup table. The [proposed shared catalog design](storage-architecture-decision.md#proposed-shared-catalog-design)
+  covers reference releases, offline cache and compatibility migration; it is not implemented.
 - **Shoulder is included.** Known shoulder isolations use Shoulder; overhead presses
   remain Compound under the current single-category scheme. Dexie v5 upgrades known
   old Arms/Back assignments. Do not assume this is a hosted SQL taxonomy migration.
