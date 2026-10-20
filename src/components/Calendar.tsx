@@ -47,7 +47,7 @@ export function Calendar({ activeKeys, selectedKey, onSelectDay, embedded = fals
           type="button"
           aria-label="Previous month"
           onClick={() => step(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -56,7 +56,7 @@ export function Calendar({ activeKeys, selectedKey, onSelectDay, embedded = fals
           type="button"
           aria-label="Next month"
           onClick={() => step(1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
         >
           <ChevronRight className="h-5 w-5" />
         </button>

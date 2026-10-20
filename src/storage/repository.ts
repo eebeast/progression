@@ -31,6 +31,13 @@ export interface Observable<T> {
   subscribe(observer: Observer<T>): Subscription;
 }
 
+export interface ImportOptions {
+  preferences?: 'keep' | 'source';
+  /** Automatic account merges can preserve the account copy instead of aborting. */
+  conflicts?: 'error' | 'skip';
+}
+export interface ImportResult { skippedConflicts: number }
+
 /** A synchronous, single-value Observable — handy for "no subscription yet" cases. */
 export function of<T>(value: T): Observable<T> {
   return {
@@ -164,5 +171,5 @@ export interface WorkoutRepository {
   // backup
   exportData(): Promise<void>;
   inspectImport(file: File): Promise<BackupImportReport>;
-  importData(file: File, options?: { preferences: 'keep' | 'source' }): Promise<void>;
+  importData(file: File, options?: ImportOptions): Promise<ImportResult>;
 }

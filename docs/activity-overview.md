@@ -1,7 +1,7 @@
 # Dashboard and Logbook
 
-**Dashboard** (`/activity`) shows charts and a combined **Keep showing up** streak
-and calendar card. Run and body-weight record lists live only in **Logbook**
+**Dashboard** (`/activity`) shows charts, a **Keep showing up** streak card, and a
+separate activity calendar card. Run and body-weight record lists live only in **Logbook**
 (`/history`), where records can be edited or deleted. Dashboard shows body weight
 as a chart rather than a record list or latest-weight card. Existing route URLs
 remain supported; `/analytics` redirects to `/activity`.

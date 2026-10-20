@@ -56,23 +56,25 @@ same-account references against the final atomic group, records immutable receip
 and appends a serialized account journal. Private tables have RLS and no browser
 schema grants. See the migration and SQL tests for the enforced contract.
 
-## Hosted Google sign-in
+## Hosted Google and GitHub sign-in
 
 1. Create a free Supabase project and apply the checked-in SQL migrations to that
    new project after reviewing them. Keep the current local source and backups.
-2. Create a Google OAuth web client. Register the Supabase Google-provider callback
-   as Google's authorized redirect URI, and configure Google consent/test users.
-3. Enter the Google client ID and client secret in Supabase provider settings.
-   The secret belongs there, not in frontend code.
+2. Create an OAuth app for each provider you want. Register the callback URL shown
+   in that provider's Supabase settings with Google or GitHub, and configure any
+   provider consent/test-user requirements.
+3. Enter each provider's client ID and secret in its Supabase provider settings.
+   Provider secrets belong there, not in frontend code.
 4. Configure Supabase's site URL and allowlist the app's `/auth/callback` URL for
    localhost and the actual deployment. The configured Vite port must match.
 5. Copy `.env.example` to ignored `.env.local`, set the project URL and public
    publishable key, then restart Vite. Never add a service-role key to the frontend.
-6. Sign in from Settings. Copying existing local history is an explicit action,
-   preceded by a downloaded backup. Preferences have a separate choice; they do not
-   block copying workout history. Account IDs and project hosts partition local data.
+6. Sign in from Settings. When online, the app merges local records into the signed-in
+   account and syncs them automatically. Existing account records are preserved when
+   IDs collide, and the original local database is retained. Account IDs and project
+   hosts partition local data.
 
-Google callback, consent and installed-app return behavior still require a real
+OAuth callback, consent and installed-app return behavior still require a real
 configured project and manual device verification. They are not established by
 local SDK mocks or the SQL tests.
 
@@ -97,15 +99,17 @@ Android/iOS checks and the personal-export reconciliation remain release gates.
 
 Version 1 backups remain readable. Version 2 exports add accepted remote versions,
 pending intent and conflicts. Account imports copy entity records through new
-versioned operations; they never replay a foreign outbox. Conflicted exports can
+versioned operations; they never replay a foreign outbox. Automatic local-to-account
+merging skips records whose IDs already exist with different values, preserving the
+account copy and the untouched original local database. Conflicted exports can
 be recovered into a local-only repository for review without uploading anything.
 The saved local values and accepted cloud copies remain available for an explicit
 choice in Settings. Keep the original recovery file until reconciliation succeeds.
 
 Large account imports create bounded, parent-first operations in the same local
 transaction. Retrying sends stable operation IDs. A local history import is not
-considered migrated merely because it was queued: check pending/error/conflict
-status and reconcile the downloaded source with a destination export.
+considered synced merely because it was queued: check pending/error/conflict status
+and reconcile the downloaded source with a destination export.
 
 Before cloud cutover, rollback uses the retained local deployment/database. After
 cloud edits begin, export current account data and resolve pending work before

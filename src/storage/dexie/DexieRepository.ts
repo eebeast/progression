@@ -21,6 +21,8 @@ import { DEFAULT_SETTINGS, PROGRAM } from '@/storage/defaults';
 import { configuredCategory, EXERCISE_CATEGORIES } from '@/utils/muscleGroups';
 import type {
   LastPerformed,
+  ImportOptions,
+  ImportResult,
   NewBodyWeightInput,
   NewRunInput,
   NewSetInput,
@@ -878,7 +880,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   }
 
   /** Replaces ALL data. Caller is responsible for confirming first. */
-  async importData(file: File, options?: { preferences: 'keep' | 'source' }): Promise<void> {
+  async importData(file: File, options?: ImportOptions): Promise<ImportResult> {
     let parsed: unknown;
     try {
       parsed = JSON.parse(await file.text());
@@ -892,6 +894,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       throw new Error('This recovery backup includes unresolved conflicts. Resolve them on the source account before a normal import.');
     }
 
+    let skippedConflicts = 0;
     await this.mutate(() => this.db.transaction(
       'rw', this.db.tables,
       async () => {
@@ -900,9 +903,15 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
             if (store === 'settings' && options?.preferences !== 'source') continue; // Existing account preferences are chosen separately from history.
             for (const row of backup.data[store] ?? []) {
               const existing = await this.db.table(store).get(row.id);
+              const accepted = options?.conflicts === 'skip' ? await this.db.versions.get(recordKey(store, row.id)) : undefined;
+              if (accepted) {
+                if (accepted.data === null || canonicalJson(accepted.data) !== canonicalJson(row)) skippedConflicts++;
+                continue; // Preserve account edits and tombstones across automatic local merges.
+              }
               const unclaimedSettings = store === 'settings' && !existing?.userName &&
                 !(await this.db.versions.get('settings/singleton'));
               if (existing && !(store === 'settings' && options?.preferences === 'source') && !unclaimedSettings && canonicalJson(existing) !== canonicalJson(row)) {
+                if (options?.conflicts === 'skip') { skippedConflicts++; continue; }
                 throw new Error(`Import collision in ${store}: ${row.id}. Existing account data has not been replaced.`);
               }
               await this.db.table(store).put(row);
@@ -944,6 +953,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         }
       },
     ), true);
+    return { skippedConflicts };
   }
 }
 

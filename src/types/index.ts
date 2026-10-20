@@ -15,6 +15,8 @@ export interface Settings {
   accent: Accent;
   weightIncrement: number;
   weeklyGoal: number;
+  /** Height in centimeters; absent on settings saved before this field existed. */
+  heightCm?: number;
   showExerciseLibrary?: boolean;
 }
 

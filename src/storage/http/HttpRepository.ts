@@ -18,6 +18,8 @@ import type {
   WorkoutTemplate,
 } from '@/types';
 import type {
+  ImportOptions,
+  ImportResult,
   LastPerformed,
   NewBodyWeightInput,
   NewRunInput,
@@ -181,7 +183,7 @@ export class HttpRepository implements WorkoutRepository {
   inspectImport(_file: File): Promise<BackupImportReport> {
     return TODO();
   }
-  importData(_file: File, _options?: { preferences: 'keep' | 'source' }): Promise<void> {
+  importData(_file: File, _options?: ImportOptions): Promise<ImportResult> {
     return TODO();
   }
 }

@@ -5,6 +5,7 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CloudProvider, useCloud } from './CloudProvider';
 import { useRepo } from '@/storage/RepositoryProvider';
+import { dexieRepository } from '@/storage/dexie/DexieRepository';
 import { useObservable } from '@/hooks/useObservable';
 
 const auth = vi.hoisted(() => ({ account: { id: 'a', email: 'a@example.test' } as { id: string; email: string } | null,
@@ -28,13 +29,19 @@ function Probe() {
   const cloud = useCloud()!; const repo = useRepo();
   const rows = useObservable(() => repo.observeRuns(), [repo]);
   return <>
-    <p>{cloud.account?.email ?? 'Local only'}</p><p>Runs: {rows?.length ?? 0}</p>
+    <p>{cloud.account?.email ?? 'Local only'}</p><p>Runs: {rows?.length ?? 0}</p><p>{cloud.error ?? ''}</p>
     <button onClick={() => repo.createRun({ date: 1, distanceKm: 1, durationSeconds: 300 })}>Add run</button>
     <button onClick={() => { void cloud.signOut().catch(() => {}); }}>Sign out</button>
   </>;
 }
 beforeEach(() => {
+  Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
   auth.account = { id: crypto.randomUUID(), email: 'a@example.test' }; auth.fail = false; auth.signOutFails = false;
+  vi.stubGlobal('File', class {
+    private value: string;
+    constructor(parts: string[]) { this.value = parts.join(''); }
+    async text() { return this.value; }
+  });
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
@@ -45,6 +52,20 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 describe('cloud account scope', () => {
+  it('automatically merges existing local history into a signed-in account', async () => {
+    const marker = crypto.randomUUID();
+    await dexieRepository.createRun({ date: 10, distanceKm: 3, durationSeconds: 900, notes: marker });
+    const localRun = (await new Promise<import('@/types').Run[]>((resolve, reject) => {
+      const sub = dexieRepository.observeRuns().subscribe({ next: (runs) => { sub.unsubscribe(); resolve(runs); }, error: reject });
+    })).find((run) => run.notes === marker)!;
+    try {
+      render(<CloudProvider><Probe /></CloudProvider>);
+      expect(await screen.findByText('Runs: 1')).toBeInTheDocument();
+    } finally {
+      await dexieRepository.deleteRun(localRun.id);
+    }
+  });
+
   it('remounts repository reads when changing accounts and hides old records immediately', async () => {
     const user = userEvent.setup();
     render(<React.StrictMode><CloudProvider><Probe /></CloudProvider></React.StrictMode>);

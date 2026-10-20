@@ -95,6 +95,41 @@ describe('account import and dependencies', () => {
     expect((await first(a.observeRuns()))[0].distanceKm).toBe(2);
     expect((await a.createBackup()).recovery?.operations).toHaveLength(1);
   });
+  it('automatically merge imports can skip account collisions while adding other local records', async () => {
+    const a = repo(); await a.ensureSeeded();
+    const source = { app: 'workout-tracker', version: 1, exportedAt: 1, data: {
+      settings: [], exercises: [], templates: [], sessions: [], logs: [],
+      runs: [{ id: 'existing', date: 1, distanceKm: 2, durationSeconds: 600 }],
+    } };
+    const file = (value: unknown) => ({ text: async () => JSON.stringify(value) }) as File;
+    await a.importData(file(source));
+    const withCollisionAndNewRecord = { ...source, data: { ...source.data, runs: [
+      { ...source.data.runs[0], distanceKm: 3 },
+      { id: 'new-local', date: 2, distanceKm: 4, durationSeconds: 900 },
+    ] } };
+    const result = await a.importData(file(withCollisionAndNewRecord), { preferences: 'keep', conflicts: 'skip' });
+    expect(result.skippedConflicts).toBe(1);
+    expect((await first(a.observeRuns())).map(({ id, distanceKm }) => [id, distanceKm]).sort(([aId], [bId]) => String(aId).localeCompare(String(bId)))).toEqual([
+      ['existing', 2], ['new-local', 4],
+    ]);
+    expect((await first(a.observeSyncStatus())).pending).toBe(2);
+  });
+  it('does not resurrect a locally retained record after the account has deleted it', async () => {
+    const a = repo();
+    const source = { app: 'workout-tracker', version: 1, exportedAt: 1, data: {
+      settings: [], exercises: [], templates: [], sessions: [], logs: [],
+      runs: [{ id: 'deleted-in-account', date: 1, distanceKm: 2, durationSeconds: 600 }],
+    } };
+    const file = (value: unknown) => ({ text: async () => JSON.stringify(value) }) as File;
+    await a.importData(file(source));
+    const original = (await a.nextOperation(Date.now()))!;
+    await a.acknowledge(original, { status: 'accepted', records: accepted(original) });
+    await a.applyChanges({ cursor: 1, hasMore: false, changes: [{ sequence: 1, store: 'runs', id: 'deleted-in-account', version: 2, data: null }] });
+    const result = await a.importData(file(source), { preferences: 'keep', conflicts: 'skip' });
+    expect(result.skippedConflicts).toBe(1);
+    expect(await first(a.observeRuns())).toEqual([]);
+    expect(await a.nextOperation(Date.now())).toBeUndefined();
+  });
   it('does not send child records while their parent creation is deferred', async () => {
     const a = repo();
     await a.bulkCreateExercises([{ id: 'e', name: 'Squat', createdAt: 1 }]);
