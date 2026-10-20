@@ -9,16 +9,16 @@ import type { SyncStatus, SyncConflict } from '@/storage/sync/types';
 import { useObservable } from '@/hooks/useObservable';
 
 interface Account { id: string; email?: string }
+type OAuthProvider = 'google' | 'github';
 interface CloudContextValue {
   configured: boolean;
   account: Account | null;
   status: SyncStatus;
   conflicts: SyncConflict[];
+  localMergeSkipped: number;
   error?: string;
-  signIn(): Promise<void>;
+  signIn(provider: OAuthProvider): Promise<void>;
   signOut(): Promise<void>;
-  retry(): Promise<void>;
-  claimLocal(): Promise<void>;
   resolve(id: string, choice: 'local' | 'remote'): Promise<void>;
 }
 const CloudContext = React.createContext<CloudContextValue | null>(null);
@@ -69,18 +69,35 @@ function AccountScope({ account, error, setError, onSignedOut, children }: {
     ? new SyncCoordinator(repo, new SupabaseTransport(cloudClient), `${cloudProject}/${account.id}`) : null);
   const status = useObservable(() => repo.observeSyncStatus(), [repo]) ?? { pending: 0, conflicts: 0 };
   const conflicts = useObservable(() => repo.observeConflicts(), [repo]) ?? [];
+  const [localMergeSkipped, setLocalMergeSkipped] = React.useState(0);
   const alive = React.useRef(true);
   React.useEffect(() => {
     alive.current = true;
     coordinator?.resume();
-    const run = () => {
-      if (navigator.onLine && coordinator) coordinator.sync().then(() => {
+    let running = false;
+    let localHistoryMerged = false;
+    const run = async () => {
+      if (!navigator.onLine || !coordinator || running) return;
+      running = true;
+      try {
+        // Pull account records first, then add missing records from the original local database.
+        await coordinator.sync();
+        if (!localHistoryMerged) {
+          const backup = await dexieRepository.createBackup();
+          const result = await repo.importData(new File([JSON.stringify(backup)], 'local-history.json', { type: 'application/json' }),
+            { preferences: 'keep', conflicts: 'skip' });
+          if (alive.current) setLocalMergeSkipped(result.skippedConflicts);
+          localHistoryMerged = true;
+          await coordinator.sync();
+        }
         if (alive.current) setError(undefined);
-      }).catch((reason: unknown) => {
+      } catch (reason: unknown) {
         if (alive.current) setError(reason instanceof Error ? reason.message : 'Sync failed');
-      });
+      } finally {
+        running = false;
+      }
     };
-    run();
+    void run();
     const interval = window.setInterval(run, 15_000);
     window.addEventListener('online', run);
     window.addEventListener('focus', run);
@@ -99,10 +116,10 @@ function AccountScope({ account, error, setError, onSignedOut, children }: {
   }, [status.pending, coordinator, setError]);
 
   const value: CloudContextValue = {
-    configured: !!cloudClient, account, status, conflicts, error,
-    async signIn() {
+    configured: !!cloudClient, account, status, conflicts, localMergeSkipped, error,
+    async signIn(provider) {
       setLocallySignedOut(cloudProject, false);
-      const { error } = await cloudClient!.auth.signInWithOAuth({ provider: 'google',
+      const { error } = await cloudClient!.auth.signInWithOAuth({ provider,
         options: { redirectTo: `${window.location.origin}/auth/callback` } });
       if (error) throw error;
     },
@@ -113,15 +130,6 @@ function AccountScope({ account, error, setError, onSignedOut, children }: {
       onSignedOut();
       const { error } = await cloudClient!.auth.signOut({ scope: 'local' });
       if (error) throw error;
-    },
-    async retry() { await repo.retrySync(); await coordinator?.sync(); },
-    async claimLocal() {
-      // Original local database remains untouched. Import collisions abort the whole transaction.
-      await dexieRepository.exportData();
-      const backup = await dexieRepository.createBackup();
-      await repo.importData(new File([JSON.stringify(backup)], 'local-history.json', { type: 'application/json' }),
-        { preferences: window.confirm('Also replace this account’s preferences with the original local name, units and appearance? Cancel keeps current account preferences and still copies workout history.') ? 'source' : 'keep' });
-      await coordinator?.sync();
     },
     async resolve(id, choice) { await repo.resolveConflict(id, choice); await coordinator?.sync(); },
   };

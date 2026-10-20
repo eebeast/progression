@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const repo = useRepo();
   const cloud = useCloud();
   const { settings } = useSettings();
+  const [heightUnit, setHeightUnit] = React.useState<'cm' | 'in'>('cm');
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [importError, setImportError] = React.useState<string | null>(null);
 
@@ -101,6 +102,32 @@ export default function SettingsPage() {
             onChange={(e) => repo.updateSettings({ userName: e.target.value })}
             placeholder="Your name"
           />
+        </Row>
+
+        <Row label="Height">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={heightUnit === 'cm' ? 40 : 15.7}
+              max={heightUnit === 'cm' ? 250 : 98.4}
+              step="0.1"
+              aria-label="Height"
+              value={settings.heightCm == null ? '' : heightUnit === 'cm' ? String(settings.heightCm) : (settings.heightCm / 2.54).toFixed(1)}
+              onChange={(e) => {
+                const value = e.target.value === '' ? undefined : Number(e.target.value);
+                if (value === undefined) void repo.updateSettings({ heightCm: undefined });
+                else if (Number.isFinite(value)) void repo.updateSettings({ heightCm: heightUnit === 'cm' ? value : value * 2.54 });
+              }}
+              placeholder={heightUnit === 'cm' ? 'e.g. 175' : 'e.g. 69'}
+              className="max-w-40"
+            />
+            <div className="flex w-28 gap-2">
+              {(['cm', 'in'] as const).map((unit) => (
+                <SegButton key={unit} value={unit} current={heightUnit} onClick={setHeightUnit}>{unit}</SegButton>
+              ))}
+            </div>
+          </div>
         </Row>
 
         <Row label="Theme">
@@ -217,7 +244,7 @@ export default function SettingsPage() {
           />
           {importError && <p className="text-sm text-destructive">{importError}</p>}
           <p className="text-xs text-muted-foreground">
-            {cloud?.account ? 'Account imports copy history and let you choose preferences, then queue cloud updates. Different records with the same ID need review.' : 'Importing replaces all local data. Everything stays on this device until you choose to copy it to an account.'}
+            {cloud?.account ? 'Account imports add records and queue cloud updates. You can choose whether backup settings replace account settings.' : 'Importing replaces all local data on this device. When you sign in, local history syncs automatically while online.'}
           </p>
         </div>
       </div>

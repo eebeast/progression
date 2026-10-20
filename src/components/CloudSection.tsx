@@ -16,20 +16,21 @@ export function CloudSection() {
     <h2 className="font-semibold">Account and sync</h2>
     {!cloud.configured ? <p className="text-sm text-muted-foreground">Cloud sync is not configured. Your records are saved on this device.</p>
       : !cloud.account ? <>
-        <p className="text-sm text-muted-foreground">Sign in to sync phone and laptop. Local history is uploaded only when you choose to copy it.</p>
-        <Button disabled={busy} onClick={() => act(cloud.signIn)}>Continue with Google</Button>
+        <p className="text-sm text-muted-foreground">Sign in to sync your local history across devices whenever you’re online.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={busy} onClick={() => act(() => cloud.signIn('github'))}>Continue with GitHub</Button>
+          <Button variant="outline" disabled={busy} onClick={() => act(() => cloud.signIn('google'))}>Continue with Google</Button>
+        </div>
       </> : <>
         <p className="text-sm">{cloud.account.email ?? 'Signed in'}</p>
         <p role="status" className="text-sm text-muted-foreground">
           {cloud.status.conflicts ? `${cloud.status.conflicts} conflicts need review` : cloud.status.pending ? `${cloud.status.pending} changes saved locally, waiting to sync` : cloud.status.lastSyncedAt ? `Synced ${new Date(cloud.status.lastSyncedAt).toLocaleString()}` : 'Checking cloud history…'}
         </p>
-        <Button variant="outline" disabled={busy} onClick={() => act(cloud.retry)}>Sync now</Button>
-        <Button variant="outline" disabled={busy} onClick={() => act(cloud.signIn)}>Refresh Google sign-in</Button>
-        <Button variant="outline" disabled={busy} onClick={() => {
-          if (window.confirm('Download a backup and copy this device’s local history into this account? Existing records with different values will be reported for review.')) act(cloud.claimLocal);
-        }}>Copy local history to this account</Button>
+        {cloud.localMergeSkipped > 0 && <p role="status" className="text-xs text-muted-foreground">
+          {cloud.localMergeSkipped} local {cloud.localMergeSkipped === 1 ? 'record was' : 'records were'} kept on this device because this account already has data for those IDs.
+        </p>}
         <Button variant="outline" disabled={busy} onClick={() => act(cloud.signOut)}>Sign out</Button>
-        <p className="text-xs text-muted-foreground">Pending changes stay with this account after sign-out. The app syncs while open or when reopened online.</p>
+        <p className="text-xs text-muted-foreground">Local history and new workouts sync automatically while you’re signed in and online.</p>
       </>}
         {cloud.conflicts.map((conflict) => <div className="rounded-xl border border-border p-3" key={conflict.id}>
           <p className="font-medium">{conflict.error ?? 'Competing edits'}</p>

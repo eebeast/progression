@@ -7,8 +7,9 @@ you add features or change conventions.
 
 **Progression** — a local-first workout tracker PWA. React 18 + TypeScript + Vite 5,
 Tailwind 3, Dexie 4 / IndexedDB, React Router 6, lucide-react, recharts, vite-plugin-pwa.
-Local-only mode uses IndexedDB. Optional Supabase configuration enables Google
-sign-in and account-scoped offline sync. See `docs/local-development.md` for setup;
+Local-only mode uses IndexedDB. Optional Supabase configuration enables Google/GitHub
+sign-in and account-scoped offline sync. Online sign-in merges local records into the
+account while preserving the original local database. See `docs/local-development.md` for setup;
 hosted verification and actual-backup reconciliation are still release gates.
 
 ## Non-negotiable design principle
@@ -47,8 +48,9 @@ Types live in `src/types/index.ts`. Stores are versioned additively in
 Account repositories use a project/account-specific database. Account mutations and
 their immutable outbox groups commit in one transaction; remote changes bypass that
 queue. Version 2 recovery exports include sync state; normal imports never replay a
-foreign outbox. Account imports merge by ID and reject collisions; local-only imports
-retain the confirmed replacement behavior. Keep this distinction visible in Settings.
+foreign outbox. Account imports merge by ID and reject collisions by default;
+automatic local-history merges skip differing ID collisions and never overwrite
+account records. Local-only imports retain the confirmed replacement behavior.
 
 Rules:
 - **New store** → new `this.version(N).stores({...})` bump (follow the `runs`/`bodyWeights`
@@ -61,7 +63,8 @@ Rules:
 Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 `metric === 'time'`], `metric?`, `isWarmup?`, `setNumber`, `timestamp`),
 `WorkoutSession`, `WorkoutTemplate`/`TemplateExercise` (has `metric?`), `Run`,
-`BodyWeightEntry`.
+`BodyWeightEntry`. `Settings.heightCm?` is user-entered height in centimeters; old
+settings rows remain valid without it.
 
 New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at start.
 `Workout` uses that snapshot, including an intentionally empty list; legacy sessions

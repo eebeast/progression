@@ -290,14 +290,14 @@ are the only mutation path; no production reads/writes have switched.
 11. Add configurable Dexie database identity/close lifecycle and remount provider
     state on account changes. Keep local-only operation as the default fallback.
 12. Add account-local schema stores for outbox, accepted revisions, cursor and conflicts.
-13. Add the auth service, Google button, PKCE callback, sign-out and reauthentication UI.
-14. Add a resumable local-history claim workflow: backup first, preview counts/issues,
-    explicitly attach to the signed-in account, and preserve the original local database.
-    If the cloud account already contains records, preview ID collisions; never replace it
-    automatically. Reject differing records with the same ID for explicit resolution.
+13. Add the auth service, Google/GitHub buttons, PKCE callback and sign-out UI.
+14. When a user signs in online, pull the account state, then merge local records into
+    the account automatically through resumable versioned operations. Preserve the
+    original local database and existing account records; skip differing ID collisions.
+    Never copy a foreign outbox or overwrite account preferences during this merge.
 
 Exit: account switches never expose cached prior-account UI; offline local records
-remain available in the correct scope; sign-in does not implicitly claim legacy data.
+remain available in the correct scope; online sign-in merges local history and syncs it.
 
 ### M4 — Offline synchronization
 

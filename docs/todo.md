@@ -23,9 +23,9 @@ Setup and recovery: [local development](./local-development.md).
   acknowledgement handling, protected pending dependencies, late-response isolation
   and explicit conflict resolution. Two-client repository simulations cover lost
   responses, conflicting edits and deletion.
-- [x] Settings Google sign-in, sync status/retry, explicit local-history copy and
-  separately chosen preferences. Recovery backups retain both versions and can be
-  opened for local review without replaying a foreign outbox.
+- [x] Settings Google/GitHub sign-in, automatic local-history merge on sign-in, and
+  sync status. Recovery backups retain both versions and can be opened for local
+  review without replaying a foreign outbox.
 - [x] Canonical exercise reuse, duplicate warnings, archive and explicit merge audit.
 - [x] Exact four-day Pull / Push / Legs + Abs / Mix preset. Existing days/history are
   retained when applying it. Plain exercise-name entry without dropdowns; management
