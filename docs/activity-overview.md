@@ -71,6 +71,15 @@ No schema version bump or destructive data migration is needed.
   weight and reps or duration. Repeated weights and zero added load remain visible.
   Warm-ups and active workouts are excluded. Unknown/invalid weights are not invented.
 - Body weight: the recorded measurements in the selected date period.
+- Adult BMI: beneath the body-weight chart, calculated live from height in Settings
+  and the latest dated weight across all history. Weight follows the active app unit;
+  pounds are converted to kilograms for BMI only. Missing or invalid inputs link to
+  Settings/Today. Edits/deletions update the result; future-dated entries are excluded.
+  Uses [CDC adult (20+) categories](https://www.cdc.gov/bmi/adult-calculator/bmi-categories.html):
+  underweight <18.5, healthy weight 18.5–<25, overweight 25–<30, obesity ≥30.
+  Values outside the reference range have a textual risk indicator. BMI is a
+  screening measure, cannot distinguish muscle from fat, and is not a diagnosis.
+  This is an explicit user-approved exception to the app's facts-only principle.
 
 Date controls apply to workout activity and body weight. Historical load charts are
 explicitly labeled all-history and include every exercise independently of gym filters.
