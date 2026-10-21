@@ -136,6 +136,8 @@ concurrent set numbering, and session snapshots.
   Saved IDs, snapshots and set values stay untouched. Explicit category/equipment
   differences, unknown custom names and `Exercise.separateHistory?` keep movements
   separate. The distinct-movement checkbox persists that optional flag; no schema bump.
+  Automatic preset/plan reuse compares candidates with the requested catalog
+  category and equipment, even when only one matching candidate exists.
   Streaks default to calendar weeks and derive current/best counts from completed
   workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
@@ -239,11 +241,12 @@ SQL tests against local Supabase/Colima; `npm run test:e2e` runs Chromium offlin
 - **Accessible chart tables:** apply `sr-only` to a wrapping `div`, not the table.
   Table intrinsic widths can override the 1px width and cause mobile horizontal
   overflow with wider system fonts. Keep the table available to assistive technology.
-- **Async pre-fill in `Workout.tsx`:** `lastWorkout` is fetched into state
-  asynchronously. The pre-fill effect depends on the `lastWorkout` object (not
-  `session.id`) and guards on `sets[0].exerciseId === current.exerciseId`, because two
-  exercises from the same past session share a `session.id` — keying on it left stale
-  values from the previous exercise. Don't regress this.
+- **Async pre-fill in `Workout.tsx`:** tag fetched history with the requested
+  exercise/session IDs and expose it only for that request. Returned log IDs can
+  belong to compatible aliases; do not require exact log-ID equality. The pre-fill
+  effect depends on the `lastWorkout` object, not its historical session ID: two
+  exercises can share that session. Preserve cancellation and metric checks so
+  switching exercises never shows or prefills stale values.
 - **Warm-up filtering** must be applied consistently: targets, the progress bar, PRs, and
   the share recap all exclude `isWarmup` sets; history/exercise views still show them.
 - **`metric === 'time'`** stores seconds in the `reps` field; always render set values

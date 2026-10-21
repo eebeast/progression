@@ -51,6 +51,9 @@ the app. Use the [glossary](glossary.md) for domain terms.
   do not rewrite IDs or fuzzy-match custom movements. Distinct equipment/category
   choices and `separateHistory` stay separate. Preset/plan entry reuses compatible
   existing aliases. Rename/archive/explicit-merge behavior retains snapshots/audits.
+  A sole matching alias is not automatically compatible: compare its saved category
+  and equipment with the requested catalog movement before reusing it. Workout
+  prefill tags history by the requested exercise/session, not returned alias log IDs.
 - **Use every recorded set.** Category drill-downs show all exercises and all
   working-set loads, including zero added weight. They are independent of the
   workout/body-weight chart period and optional gym filters.
