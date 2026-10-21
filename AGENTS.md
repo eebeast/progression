@@ -90,8 +90,8 @@ from a plan that may have changed. This optional field requires no schema bump.
 The default program is the user’s four-day Pull / Push / Legs + Abs / Mix plan.
 `installFourDayPlan` archives previous days rather than deleting them; `observeTemplates`
 hides archived days unless explicitly requested. Keep exercise entry as one plain name
-field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse unique
-exact exercise names internally. The workout screen shows the session's planned
+field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse an
+unambiguous matching exercise/verified catalog alias internally. The workout screen shows the session's planned
 exercises without an add-exercise form. Rest timer controls are removed from workout
 and plan editing screens. Keep stored timer fields compatible with existing backups.
 
@@ -130,6 +130,12 @@ concurrent set numbering, and session snapshots.
   all completed history independently of date controls and gym filters. Category
   details show the full configured catalog, custom exercises and legacy records.
   Recognized legacy spelling aliases never merge IDs. Warm-ups are excluded.
+  `utils/exerciseHistory.ts` provides read-only history families for verified catalog
+  aliases across IDs (including Bench Press/Barbell Bench Press). Category graphs,
+  exercise history/PRs, prior values and exercise filters use all family sets.
+  Saved IDs, snapshots and set values stay untouched. Explicit category/equipment
+  differences, unknown custom names and `Exercise.separateHistory?` keep movements
+  separate. The distinct-movement checkbox persists that optional flag; no schema bump.
   Streaks default to calendar weeks and derive current/best counts from completed
   workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +

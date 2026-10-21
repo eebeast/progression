@@ -128,8 +128,8 @@ checks. Local database tests require Docker; Colima is supported. See the setup 
 for the local Supabase command.
 
 CI has separate check, browser and database jobs on pushes/PRs to `main`.
-The latest code verification on October 20, 2026 passed 257 unit/integration tests,
-four Chromium scenarios and the production build. Lint had no errors and existing
+The latest code verification on October 21, 2026 passed 274 unit/integration tests,
+five Chromium scenarios (including old/new exercise-ID history) and the production build. Lint had no errors and existing
 warnings. SQL tests were last documented as 19 passing locally on October 18; they
 were not rerun for the BMI or documentation changes. See the
 [status checklist](docs/todo.md) for unverified hosted/device and migration work.

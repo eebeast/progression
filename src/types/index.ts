@@ -21,6 +21,8 @@ export interface Settings {
 }
 
 export interface Exercise {
+  /** User-confirmed distinct movement: do not combine its history through name aliases. */
+  separateHistory?: boolean;
   category?: ExerciseCategory;
   id: string;
   name: string;

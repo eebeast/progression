@@ -94,3 +94,44 @@ test('activity dashboard charts are readable on desktop, mobile and dark themes'
   await page.screenshot({ path: test.info().outputPath('activity-dark.png'), fullPage: true, animations: 'disabled' });
   expect(await page.locator('.recharts-bar-rectangle path').first().evaluate((node) => getComputedStyle(node).fill)).toBe('rgb(125, 122, 245)');
 });
+
+test('old and new Bench Press IDs share every recorded load and exercise history', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('History mapping check');
+  await page.getByRole('button', { name: 'Get started' }).click();
+  await expect(page.getByRole('button', { name: 'Start workout', exact: true })).toBeVisible();
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('workout-tracker');
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const exercises = await new Promise<{ id: string; name: string }[]>((resolve, reject) => {
+      const request = db.transaction('exercises').objectStore('exercises').getAll();
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const current = exercises.find((exercise) => exercise.name === 'Barbell Bench Press')!;
+    const now = Date.now(); const oldDate = now - 400 * 86_400_000;
+    const tx = db.transaction(['exercises', 'sessions', 'logs'], 'readwrite');
+    tx.objectStore('exercises').put({ id: 'legacy-bench', name: 'Bench Press', createdAt: oldDate });
+    for (const [id, date] of [['old-bench-session', oldDate], ['current-bench-session', now]] as const) {
+      tx.objectStore('sessions').put({ id, templateId: 'historic-plan', templateName: 'Push', date, startTime: date, endTime: date + 1000, status: 'completed', notes: '', feeling: null });
+    }
+    tx.objectStore('logs').put({ id: 'legacy-bench-set', sessionId: 'old-bench-session', exerciseId: 'legacy-bench', exerciseName: 'Bench Press', weight: 50, reps: 8, setNumber: 1, timestamp: oldDate });
+    tx.objectStore('logs').put({ id: 'current-bench-set', sessionId: 'current-bench-session', exerciseId: current.id, exerciseName: current.name, weight: 80, reps: 6, setNumber: 1, timestamp: now });
+    await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+    db.close();
+  });
+  await page.goto('/activity');
+  await page.getByRole('group', { name: 'Exercise categories' }).getByRole('button', { name: /Chest/ }).click();
+  const records = page.getByRole('region', { name: 'Chest exercise records' });
+  await expect(records.getByRole('link', { name: /Bench Press/ })).toHaveCount(1);
+  const history = records.getByRole('table', { name: 'Set load recorded values' });
+  await expect(history).toHaveCount(1);
+  await expect(history.getByRole('row')).toHaveCount(3);
+  await expect(history).toContainText('50 kg');
+  await expect(history).toContainText('80 kg');
+  await records.getByRole('link', { name: /Bench Press/ }).click();
+  await expect(page.getByText('50kg × 8', { exact: true })).toBeVisible();
+  await expect(page.getByText('80kg × 6', { exact: true })).toBeVisible();
+  await expect(page.getByText('Not enough data yet')).toHaveCount(0);
+});

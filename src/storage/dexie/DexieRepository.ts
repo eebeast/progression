@@ -19,6 +19,7 @@ import type {
 import { newId } from '@/utils/format';
 import { DEFAULT_SETTINGS, PROGRAM } from '@/storage/defaults';
 import { configuredCategory, EXERCISE_CATEGORIES } from '@/utils/muscleGroups';
+import { exerciseHistoryIds, reusableExercise } from '@/utils/exerciseHistory';
 import type {
   LastPerformed,
   ImportOptions,
@@ -343,16 +344,12 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         }
 
         if (!this.accountIdentity && (await this.db.templates.count()) === 0) {
-          const existingExercises = await this.db.exercises.toArray();
-          const exerciseByName = new Map<string, Exercise>(
-            existingExercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]),
-          );
+          const exerciseLibrary = await this.db.exercises.toArray();
           const ensureExercise = (name: string): Exercise => {
-            const key = name.toLowerCase();
-            let ex = exerciseByName.get(key);
+            let ex = reusableExercise(exerciseLibrary, name);
             if (!ex) {
               ex = { id: newId(), name, category: configuredCategory(name), createdAt: Date.now() };
-              exerciseByName.set(key, ex);
+              exerciseLibrary.push(ex);
             }
             return ex;
           };
@@ -380,7 +377,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
             };
           });
 
-          await this.db.exercises.bulkPut([...exerciseByName.values()]);
+          await this.db.exercises.bulkPut(exerciseLibrary);
           await this.db.templates.bulkPut(templates);
         }
     });
@@ -403,7 +400,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     return liveQuery(() => this.db.exercises.toArray());
   }
 
-  async createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string> {
+  async createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'separateHistory'>): Promise<string> {
     return this.mutate(async () => {
       if (!input.name.trim()) throw new Error('An exercise needs a name.');
       if (input.category && !EXERCISE_CATEGORIES.includes(input.category)) throw new Error('Choose a valid exercise category.');
@@ -413,7 +410,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     });
   }
 
-  async updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void> {
+  async updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'separateHistory' | 'archivedAt'>>): Promise<void> {
     return this.mutate(async () => {
       const exercise = await this.db.exercises.get(id);
       if (!exercise) throw new Error('Exercise not found.');
@@ -467,10 +464,9 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
         const prior = templates.find((template) => template.presetDay === order);
         const exercises: TemplateExercise[] = [];
         for (const [position, assignment] of day.exercises.entries()) {
-          const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === assignment.name.toLowerCase());
-          // Reuse a single exact match. Ambiguous legacy definitions remain untouched.
+          // Reuse a verified alias family. Distinct/ambiguous movements remain untouched.
           const priorId = prior?.exercises.find((row) => row.name === assignment.name)?.exerciseId;
-          let exercise = library.find((row) => row.id === priorId && !row.archivedAt) ?? (matches.length === 1 ? matches[0] : undefined);
+          let exercise = library.find((row) => row.id === priorId && !row.archivedAt) ?? reusableExercise(library, assignment.name);
           if (!exercise) {
             exercise = { id: newId(), name: assignment.name, category: configuredCategory(assignment.name), createdAt: now };
             library.push(exercise); await this.db.exercises.add(exercise);
@@ -668,10 +664,13 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   observeAllLogs(): Observable<ExerciseLog[]> { return liveQuery(() => this.db.logs.toArray()); }
 
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]> {
-    return liveQuery(async () => {
-      const logs = await this.db.logs.where('exerciseId').equals(exerciseId).toArray();
-      return logs.sort((a, b) => a.timestamp - b.timestamp);
-    });
+    return liveQuery(() => this.logsForExerciseHistory(exerciseId));
+  }
+
+  private async logsForExerciseHistory(exerciseId: string): Promise<ExerciseLog[]> {
+    const [exercises, logs] = await Promise.all([this.db.exercises.toArray(), this.db.logs.toArray()]);
+    const ids = new Set(exerciseHistoryIds(exercises, logs).get(exerciseId) ?? [exerciseId]);
+    return logs.filter((log) => ids.has(log.exerciseId)).sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));
   }
 
   private async logsForSessionExercise(
@@ -694,7 +693,7 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     exerciseId: string,
     currentSessionId: string,
   ): Promise<LastPerformed | null> {
-    const logs = await this.db.logs.where('exerciseId').equals(exerciseId).toArray();
+    const logs = await this.logsForExerciseHistory(exerciseId);
     if (logs.length === 0) return null;
 
     const bySession = new Map<string, ExerciseLog[]>();

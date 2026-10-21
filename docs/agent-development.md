@@ -46,8 +46,11 @@ the app. Use the [glossary](glossary.md) for domain terms.
 - **Keep records where users expect them.** Today records runs/weight. Dashboard
   charts them. Logbook owns their editable record lists. Streak and calendar are
   separate cards; date controls fit phone widths.
-- **Protect original identities.** Aliases organize display names, not exercise IDs.
-  Rename/archive/merge behavior must retain historical snapshots and audits.
+- **Protect original identities.** Verified aliases can share a read-only history
+  across exercise IDs via `utils/exerciseHistory.ts`. Preserve every original set;
+  do not rewrite IDs or fuzzy-match custom movements. Distinct equipment/category
+  choices and `separateHistory` stay separate. Preset/plan entry reuses compatible
+  existing aliases. Rename/archive/explicit-merge behavior retains snapshots/audits.
 - **Use every recorded set.** Category drill-downs show all exercises and all
   working-set loads, including zero added weight. They are independent of the
   workout/body-weight chart period and optional gym filters.

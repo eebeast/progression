@@ -10,6 +10,7 @@ import type { Exercise } from '@/types';
 import type { ExerciseCategory } from '@/types';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import { configuredCategory, muscleGroup } from '@/utils/muscleGroups';
+import { matchingExercises } from '@/utils/exerciseHistory';
 
 export default function Exercises() {
   const navigate = useNavigate(); const repo = useRepo();
@@ -21,7 +22,7 @@ export default function Exercises() {
   const [equipment, setEquipment] = React.useState(''); const [search, setSearch] = React.useState('');
   const [error, setError] = React.useState<string>(); const [busy, setBusy] = React.useState(false);
   const [mergeTarget, setMergeTarget] = React.useState(''); const [distinct, setDistinct] = React.useState(false);
-  const matches = (library ?? []).filter((e) => e.id !== edit?.id && !e.archivedAt && e.name.trim().toLowerCase() === name.trim().toLowerCase());
+  const matches = matchingExercises(library ?? [], name).filter((exercise) => exercise.id !== edit?.id);
   const perform = async (action: () => Promise<void>) => {
     setError(undefined); setBusy(true);
     try { await action(); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Changes could not be saved'); }
@@ -30,7 +31,7 @@ export default function Exercises() {
   const save = async () => {
     if (!name.trim() || !category || (matches.length && !distinct)) return;
     await perform(async () => {
-      const input = { name: name.trim(), category, equipment: equipment.trim() };
+      const input = { name: name.trim(), category, equipment: equipment.trim(), ...(distinct ? { separateHistory: true } : {}) };
       if (edit) await repo.updateExercise(edit.id, input); else await repo.createExercise(input);
       setEdit(null); setName(''); setCategory(undefined); setEquipment(''); setDistinct(false);
     });

@@ -205,11 +205,12 @@ of release cleanup.
 
 ## Verification checkpoints
 
-Latest code verification, October 20, 2026 (before documentation-only updates):
+Latest code verification, October 21, 2026:
 
-- 257 Vitest tests across 37 files pass, including adult BMI and Shoulder migration.
-- Four Chromium production-build scenarios pass: navigation/record flow, responsive
-  charts/themes, offline restart/undo, and desktop plan/editor behavior.
+- 274 Vitest tests across 38 files pass, including alias history, two-client sync,
+  preset ID reuse, adult BMI and Shoulder migration.
+- Five Chromium production-build scenarios pass: navigation/record flow, responsive
+  charts/themes, old/new Bench Press history, offline restart/undo and desktop plans.
 - Typecheck and production build pass. Lint has 26 existing warnings and no errors;
   the build retains the existing large-bundle warning.
 - SQL tests were last documented as 19 passing locally on Supabase/Colima on

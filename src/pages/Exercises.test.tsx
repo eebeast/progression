@@ -38,6 +38,15 @@ function renderPage() {
 }
 
 describe('Exercises page', () => {
+  it('detects preset aliases and persists a user-confirmed distinct movement', async () => {
+    const user = userEvent.setup(); const repo = renderPage();
+    await user.click(screen.getByText('Manage exercise library'));
+    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Barbell Bench Press');
+    expect(screen.getByRole('button', { name: 'Create exercise' })).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'This is a distinct movement' }));
+    await user.click(screen.getByRole('button', { name: 'Create exercise' }));
+    expect(repo.createExercise).toHaveBeenCalledWith(expect.objectContaining({ name: 'Barbell Bench Press', separateHistory: true }));
+  });
   it('lists exercises A-Z', async () => {
     renderPage();
     // Bench Press sorts before Squat.

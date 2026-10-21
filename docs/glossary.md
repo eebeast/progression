@@ -9,7 +9,7 @@ can differ from legacy module names.
 | Dashboard | Charts, categories, streaks and calendar; legacy modules may be named Activity or Analytics |
 | Logbook | Dated workout, run and weight records; legacy routes/modules retain History names |
 | Exercise | A reusable movement definition with stable ID, category and optional metadata |
-| Exercise alias | An interchangeable name used for catalog matching/display; never permission to merge logged IDs |
+| Exercise alias | An interchangeable verified catalog name; compatible IDs share read-only history while saved IDs remain intact |
 | Exercise category | One organizational bucket: Chest, Legs, Back, Shoulder, Core, Arms or Compound |
 | Compound | An app navigation bucket for configured lifts such as deadlift/overhead press; not an anatomical muscle group |
 | Shared catalog | Maintainer-published reference categories, presets and aliases; does not contain user workout records (proposed ownership model) |

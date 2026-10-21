@@ -1,7 +1,8 @@
 import type { Exercise, ExerciseLog } from '@/types';
 import { EXERCISE_CATALOG, exerciseNameKey, muscleGroup } from './muscleGroups';
+import { exerciseHistoryIds } from './exerciseHistory';
 
-export interface CategoryExercise { id?: string; name: string }
+export interface CategoryExercise { id?: string; name: string; exerciseIds?: string[] }
 
 /** Full category catalog plus original logged identities, including missing legacy definitions. */
 export function categoryExercises(category: string, exercises: Exercise[], logs: ExerciseLog[]): CategoryExercise[] {
@@ -19,14 +20,15 @@ export function categoryExercises(category: string, exercises: Exercise[], logs:
   for (const exercise of EXERCISE_CATALOG) if (exercise.category === category && !names.has(exerciseNameKey(exercise.name))) {
     rows.push({ name: exercise.name }); names.add(exerciseNameKey(exercise.name));
   }
-  const recordedNames = new Set(rows.filter((row) => loggedIds.has(row.id ?? '')).map((row) => exerciseNameKey(row.name)));
-  const unloggedNames = new Set<string>();
-  return rows.filter((row) => {
-    // Every recorded identity stays visible; only redundant empty cards are hidden.
-    if (loggedIds.has(row.id ?? '')) return true;
-    const key = exerciseNameKey(row.name);
-    if (recordedNames.has(key) || unloggedNames.has(key)) return false;
-    unloggedNames.add(key);
-    return true;
-  }).sort((a, b) => Number(loggedIds.has(b.id ?? '')) - Number(loggedIds.has(a.id ?? '')) || a.name.localeCompare(b.name));
+  const visible = rows.sort((a, b) => Number(loggedIds.has(b.id ?? '')) - Number(loggedIds.has(a.id ?? '')) || a.name.localeCompare(b.name));
+  const histories = exerciseHistoryIds(exercises, logs);
+  const seen = new Set<string>();
+  return visible.flatMap((row) => {
+    if (!row.id) return [row];
+    const ids = histories.get(row.id) ?? [row.id];
+    const key = JSON.stringify(ids);
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [ids.length > 1 ? { ...row, exerciseIds: ids } : row];
+  });
 }

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Stepper } from '@/components/Stepper';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import { configuredCategory } from '@/utils/muscleGroups';
+import { matchingExercises, reusableExercise } from '@/utils/exerciseHistory';
 import { cn } from '@/lib/utils';
 import type { Exercise, ExerciseCategory, Metric, TemplateExercise } from '@/types';
 
@@ -103,11 +104,11 @@ export default function TemplateEditor() {
     try {
       const toCreate: Exercise[] = [];
       const exercises: TemplateExercise[] = validRows.map((row, order) => {
-        const matches = library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === row.name.trim().toLowerCase());
+        const matches = matchingExercises(library, row.name);
         if (!row.exerciseId && matches.length && !row.confirmedDistinct) throw new Error('Reuse a matching exercise or confirm a distinct movement.');
         const id = row.exerciseId ?? newId();
         if (!row.exerciseId && !row.category) throw new Error('Choose a category for each new exercise.');
-        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), category: row.category, createdAt: Date.now() });
+        if (!row.exerciseId) toCreate.push({ id, name: row.name.trim(), category: row.category, ...(row.confirmedDistinct ? { separateHistory: true } : {}), createdAt: Date.now() });
         return { assignmentId: row.key, exerciseId: id, name: row.name.trim(), targetSets: row.targetSets,
           restSeconds: row.restSeconds, targetRepRange: row.targetRepRange.trim() || '–', metric: row.metric, order };
       });
@@ -192,8 +193,8 @@ export default function TemplateEditor() {
                   aria-label={`Exercise name ${i + 1}`}
                   onChange={(event) => {
                     const value = event.target.value;
-                    const matches = library.filter((exercise) => !exercise.archivedAt && exercise.name.trim().toLowerCase() === value.trim().toLowerCase());
-                    updateRow(r.key, { name: value, exerciseId: matches.length === 1 ? matches[0].id : undefined, category: configuredCategory(value), confirmedDistinct: false });
+                    const existing = reusableExercise(library, value);
+                    updateRow(r.key, { name: value, exerciseId: existing?.id, category: configuredCategory(value), confirmedDistinct: false });
                   }}
                   placeholder="Exercise name"
                   className="flex-1"
@@ -208,9 +209,9 @@ export default function TemplateEditor() {
                 </button>
               </div>
 
-              {!r.exerciseId && library.some((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()) && <div className="mb-3 flex flex-col gap-2 text-sm">
+              {!r.exerciseId && matchingExercises(library, r.name).length > 0 && <div className="mb-3 flex flex-col gap-2 text-sm">
                 <p>Matching names found. Choose an existing exercise or confirm this is a different movement.</p>
-                {library.filter((e) => !e.archivedAt && e.name.trim().toLowerCase() === r.name.trim().toLowerCase()).map((e) =>
+                {matchingExercises(library, r.name).map((e) =>
                   <Button key={e.id} variant="outline" onClick={() => updateRow(r.key, { exerciseId: e.id, name: e.name })}>Use existing {e.name}</Button>)}
                 <label><input type="checkbox" checked={!!r.confirmedDistinct} onChange={(e) => updateRow(r.key, { confirmedDistinct: e.target.checked })} /> This is a distinct movement</label>
               </div>}

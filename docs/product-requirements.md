@@ -98,6 +98,11 @@ obsolete proposals from active docs and keep validation evidence separate from i
   workout add-exercise forms and exercise-name dropdowns remain removed.
 - Preserve stable exercise IDs, assignment IDs and session prescription/name
   snapshots. Alias normalization is for catalog matching/display, not automatic merging.
+- Known catalog aliases can share a read-only all-history view across old/new IDs.
+  Category graphs, exercise history/records, previous values and exercise filters
+  include every original set. Preserve separate category/equipment choices,
+  user-confirmed distinct movements and unknown custom identities. Preset/plan
+  entry reuses compatible existing aliases to avoid creating fresh duplicates.
 - Require categories for new exercise UI; use saved metadata and known aliases to
   resolve legacy records. Explicit categories win after migrations. Keep missing
   definitions/historical names visible without inventing ambiguous classifications.

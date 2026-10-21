@@ -3,6 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DexieRepository } from '@/storage/dexie/DexieRepository';
 import { SyncCoordinator } from './coordinator';
 import type { Change, Operation, PushResult, SyncTransport } from './types';
+import type { Observable } from '@/storage/repository';
+
+function first<T>(observable: Observable<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const subscription = observable.subscribe({ next(value) { subscription.unsubscribe(); resolve(value); }, error: reject });
+  });
+}
 
 const repositories: DexieRepository[] = [];
 function device() { const repo = new DexieRepository(crypto.randomUUID(), 'test/account'); repositories.push(repo); return repo; }
@@ -31,6 +38,30 @@ class Server implements SyncTransport {
 }
 
 describe('two-client sync', () => {
+  it('syncs every old/new Bench Press set and reads both IDs as one history on another device', async () => {
+    const a = device(); const b = device(); const server = new Server();
+    const oldId = await a.createExercise({ name: 'Bench Press' });
+    const newId = await a.createExercise({ name: 'Barbell Bench Press', category: 'Chest' });
+    const planId = await a.createTemplate({ name: 'Push', estimatedMinutes: 30, exercises: [
+      { exerciseId: oldId, name: 'Bench Press', order: 0, targetSets: 1, targetRepRange: '8' },
+      { exerciseId: newId, name: 'Barbell Bench Press', order: 1, targetSets: 1, targetRepRange: '6' },
+    ] });
+    const sessionId = await a.startSession((await a.getTemplate(planId))!);
+    await a.addSet({ sessionId, exerciseId: oldId, exerciseName: 'Bench Press', weight: 50, reps: 8 });
+    await a.addSet({ sessionId, exerciseId: newId, exerciseName: 'Barbell Bench Press', weight: 80, reps: 6 });
+    await a.finishSession(sessionId, { notes: '', feeling: null });
+    const source = await a.createBackup();
+    await new SyncCoordinator(a, server).sync();
+    await new SyncCoordinator(b, server).sync();
+    const destination = await b.createBackup();
+    expect(destination.data.logs).toEqual(source.data.logs);
+    expect(destination.data.exercises).toEqual(source.data.exercises);
+    const history = await first(b.observeExerciseLogs(newId));
+    expect(history.map((log) => log.weight).sort((x, y) => x - y)).toEqual([50, 80]);
+    expect(new Set(history.map((log) => log.exerciseId))).toEqual(new Set([oldId, newId]));
+    expect(server.changes.filter((change) => change.store === 'logs')).toHaveLength(2);
+    expect(await a.nextOperation(Date.now())).toBeUndefined();
+  });
   it('retries a committed write with the same ID after a lost response and delivers it once to another client', async () => {
     const a = device(); const b = device(); const server = new Server();
     await a.createRun({ date: 1, distanceKm: 5, durationSeconds: 1500 });
