@@ -53,12 +53,19 @@ variants keep separate catalog entries and logged IDs. Ambiguous custom names su
 as Calthenic require an explicit category rather than a guessed movement.
 Interchangeable names such as Barbell Row / Barbell Bent-over Row, Bench Press /
 Barbell Bench Press and EZ Bar Curl / EZ Bar Biceps Curl share a catalog key.
-Category details hide redundant unlogged cards for these aliases. If distinct
-saved IDs both have recorded sets, both histories remain visible and no sets are
-merged or rewritten. Weighted and unweighted movements remain separate presets.
+Category details show a single combined history for verified aliases across old/new
+IDs, including every original recorded set. Exercise history/PRs, previous values
+and exercise filters use the same family resolver. No saved IDs, names, timestamps
+or set values are rewritten, deduplicated or deleted. Preset installation and plan
+entry reuse compatible existing aliases rather than creating a fresh ID.
+Explicit category/equipment differences and user-confirmed distinct movements
+(`separateHistory`) stay separate, as do weighted/unweighted variants and unknown
+custom names. This is a read-side correction, not a hosted data/schema migration.
 Unknown exercises are retained in history but do not
 create an Unspecified dashboard category. Categorize them in the exercise library.
-No schema version bump or destructive data migration is needed.
+Optional category fields need no schema bump. Dexie v5 is a non-destructive data
+upgrade for the known shoulder-category defaults described above; it is not a
+hosted SQL catalog migration.
 
 ## Charts
 

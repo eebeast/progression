@@ -3,6 +3,16 @@
 Context for AI agents (and humans) working in this repo. Keep this file current when
 you add features or change conventions.
 
+## Start here
+
+Read the [current PRD](docs/product-requirements.md),
+[agent development guide](docs/agent-development.md) and [glossary](docs/glossary.md).
+Use [todo.md](docs/todo.md) for open work only; current behavior and validation are
+documented in the PRD/setup guide. Obsolete plans and scaffolding prompts have been
+removed; Git history retains them. Current requirements and later explicit user
+instructions govern development. Do not rebuild delivered features or restore removed UI.
+The issue tracker is GitHub Issues in `eebeast/progression`; PRDs use `ready-for-agent`.
+
 ## What this is
 
 **Progression** — a local-first workout tracker PWA. React 18 + TypeScript + Vite 5,
@@ -80,8 +90,8 @@ from a plan that may have changed. This optional field requires no schema bump.
 The default program is the user’s four-day Pull / Push / Legs + Abs / Mix plan.
 `installFourDayPlan` archives previous days rather than deleting them; `observeTemplates`
 hides archived days unless explicitly requested. Keep exercise entry as one plain name
-field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse unique
-exact exercise names internally. The workout screen shows the session's planned
+field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse an
+unambiguous matching exercise/verified catalog alias internally. The workout screen shows the session's planned
 exercises without an add-exercise form. Rest timer controls are removed from workout
 and plan editing screens. Keep stored timer fields compatible with existing backups.
 
@@ -109,8 +119,8 @@ concurrent set numbering, and session snapshots.
   between top-set weight and working-set count. Facts only: **no** trend/projection/average;
   renders "Not enough data yet" below 2 sessions. Recharts 3.x: type a custom Tooltip
   `content` fn as `TooltipContentProps` with default generics or `tsc -b` rejects it.
-- **Dashboard and Logbook** — `/activity` shows charts and a combined streak/calendar
-  card. `/history` (Logbook) owns exercise/run/body-weight records and type filters,
+- **Dashboard and Logbook** — `/activity` shows charts and separate streak/calendar
+  cards. `/history` (Logbook) owns exercise/run/body-weight records and type filters,
   including an empty Cycles filter until cycling logging exists. Calendar dates link
   to `/history?date=YYYY-MM-DD`. `/analytics` redirects to Dashboard. See
   `docs/activity-overview.md`. Categories are Chest/Legs/Back/Shoulder/Core/Arms/Compound;
@@ -120,6 +130,12 @@ concurrent set numbering, and session snapshots.
   all completed history independently of date controls and gym filters. Category
   details show the full configured catalog, custom exercises and legacy records.
   Recognized legacy spelling aliases never merge IDs. Warm-ups are excluded.
+  `utils/exerciseHistory.ts` provides read-only history families for verified catalog
+  aliases across IDs (including Bench Press/Barbell Bench Press). Category graphs,
+  exercise history/PRs, prior values and exercise filters use all family sets.
+  Saved IDs, snapshots and set values stay untouched. Explicit category/equipment
+  differences, unknown custom names and `Exercise.separateHistory?` keep movements
+  separate. The distinct-movement checkbox persists that optional flag; no schema bump.
   Streaks default to calendar weeks and derive current/best counts from completed
   workouts and runs. Keep chart values factual, accessible and in active units.
 - **Share** — `utils/shareSummary.ts` (`buildWorkoutRecap`, working sets only) +
@@ -150,9 +166,10 @@ concurrent set numbering, and session snapshots.
 
 ## Routes
 
-`/onboarding`, `/` (Dashboard), `/workout/:sessionId`, `/summary/:sessionId`,
-`/activity`, `/analytics`, `/history`, `/history/:sessionId`, `/exercise/:exerciseId`, `/templates`,
+`/onboarding`, `/` (Today), `/workout/:sessionId`, `/summary/:sessionId`,
+`/activity` (Dashboard), `/analytics` (redirect), `/history` (Logbook), `/history/:sessionId`, `/exercise/:exerciseId`, `/exercises`, `/templates`,
 `/templates/new`, `/templates/:templateId`, `/settings`. Defined in `src/App.tsx`.
+`/auth/callback` is processed by the auth client before the application routing gate.
 
 ## Conventions
 
@@ -183,7 +200,7 @@ npm run build      # tsc -b + vite build
 
 **Tests:** **Vitest** with **jsdom** + **React Testing Library** (`@testing-library/react`,
 `user-event`, `jest-dom`), colocated as `*.test.ts`/`*.test.tsx`. `src/test/setup.ts`
-registers jest-dom matchers and RTL cleanup. Two layers:
+registers jest-dom matchers and RTL cleanup. Main layers:
 - **Pure utils** (`personalRecords`, `program`, `shareSummary`, `format`, `activity`,
   `runMetrics`) — input/output + edge cases. When you touch one, add/update its test.
 - **Leaf components/hooks** — behavior via accessible queries + `user-event` (`Stepper`,
@@ -193,15 +210,16 @@ registers jest-dom matchers and RTL cleanup. Two layers:
 - **Container pages** — integration tests with a fake `WorkoutRepository` injected via
   `RepositoryProvider repository={…}` and wrapped in `MemoryRouter`; use `of(value)` from
   `@/storage/repository` for the reactive reads. `Dashboard.test.tsx` is the reference
-  pattern. `Workout`, `Activity`, `Summary`, etc. are still uncovered — follow that pattern
-  when you touch them.
+  pattern. Workout, Activity/Analytics, Logbook and plan/exercise editing now have
+  integration coverage; extend the nearest existing suite when changing behavior.
 
 **Coverage:** `npm run test:coverage` (v8). CI runs it and uploads the `coverage/` report
-as an artifact; there is no hard threshold yet (utils are well covered; pages/storage are
-not).
+as an artifact; there is no hard threshold yet. Page/repository regression suites
+exist alongside utility and component coverage; do not infer full coverage from this.
 
-**CI:** `.github/workflows/ci.yml` runs lint → typecheck → test (coverage) → build on every
-push/PR to `main`. Keep all green.
+**CI:** `.github/workflows/ci.yml` runs separate check (lint → typecheck → coverage →
+build), Chromium browser, and local-Supabase database jobs on pushes/PRs to `main`.
+Keep all green.
 
 **PWA:** production builds use prompt-based updates. Defer applying updates during
 active workouts or editing routes. Browser tests use the production preview server;

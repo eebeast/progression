@@ -120,9 +120,45 @@ describe('IndexedDB persistence', () => {
     expect(templates.flatMap((plan) => plan.exercises).every((exercise) => ids.has(exercise.exerciseId))).toBe(true);
     expect(await repo.listExercises()).toContainEqual(source.data.exercises[0]);
   });
+
+  it('does not pick an arbitrary equipment variant when seeding an existing duplicate-name library', async () => {
+    await repo.importData(file({ ...source, data: { ...source.data, templates: [], exercises: [
+      ...source.data.exercises,
+      { id: 'barbell', name: 'Bench Press', equipment: 'barbell', createdAt: 1 },
+      { id: 'machine', name: 'Bench Press', equipment: 'machine', createdAt: 1 },
+    ] } }));
+    await repo.ensureSeeded();
+    const push = (await first(repo.observeTemplates())).find((day) => day.name === 'Push')!;
+    expect(['barbell', 'machine']).not.toContain(push.exercises[0].exerciseId);
+    expect((await repo.listExercises()).filter((exercise) => ['barbell', 'machine'].includes(exercise.id))).toHaveLength(2);
+  });
 });
 
 describe('canonical exercise management', () => {
+  it.each([
+    ['Bench Press', 'Barbell Bench Press'], ['Barbell Row', 'Barbell Bent-over Row'],
+    ['EZ Bar Curl', 'EZ Bar Biceps Curl'], ['Overhead Press', 'Standing Overhead Press'],
+  ])('reuses historical %s when installing the preset %s', async (legacyName, presetName) => {
+    await repo.bulkCreateExercises([{ id: 'legacy-movement', name: legacyName, createdAt: 1 }]);
+    await repo.installFourDayPlan();
+    const templates = await first(repo.observeTemplates());
+    const assignment = templates.flatMap((day) => day.exercises).find((row) => row.name === presetName);
+    expect(assignment?.exerciseId).toBe('legacy-movement');
+  });
+
+  it('reads every alias set for history/previous values without changing backup IDs or set values', async () => {
+    const oldSet = { ...source.data.logs[0], exerciseId: 'old-bench', exerciseName: 'Bench Press' };
+    const data = { ...source.data,
+      exercises: [...source.data.exercises, { id: 'old-bench', name: 'Bench Press', createdAt: 1 }, { id: 'new-bench', name: 'Barbell Bench Press', createdAt: 2 }],
+      logs: [oldSet],
+    };
+    await repo.importData(file({ ...source, data }));
+    const before = (await repo.createBackup()).data;
+    expect(await first(repo.observeExerciseLogs('new-bench'))).toEqual([oldSet]);
+    expect((await repo.getLastPerformedSets('new-bench', 'today'))?.sets).toEqual([oldSet]);
+    expect((await repo.createBackup()).data).toEqual(before);
+  });
+
   it('persists explicit exercise categories through backup export', async () => {
     const id = await repo.createExercise({ name: 'My movement', category: 'Compound' });
     expect((await repo.createBackup()).data.exercises.find((exercise) => exercise.id === id)?.category).toBe('Compound');

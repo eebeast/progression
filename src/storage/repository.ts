@@ -105,8 +105,8 @@ export interface WorkoutRepository {
   listExercises(): Promise<Exercise[]>;
   bulkCreateExercises(list: Exercise[]): Promise<void>;
   observeExercises(): Observable<Exercise[]>;
-  createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment'>): Promise<string>;
-  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'archivedAt'>>): Promise<void>;
+  createExercise(input: Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'separateHistory'>): Promise<string>;
+  updateExercise(id: string, patch: Partial<Pick<Exercise, 'name' | 'category' | 'primaryMuscle' | 'equipment' | 'separateHistory' | 'archivedAt'>>): Promise<void>;
   previewExerciseMerge(sourceId: string, targetId: string): Promise<{ templates: number; sessions: number; sets: number }>;
   mergeExercises(sourceId: string, targetId: string): Promise<void>;
 
@@ -138,7 +138,7 @@ export interface WorkoutRepository {
   // logs (sets)
   observeSessionLogs(sessionId: string): Observable<ExerciseLog[]>;
   observeAllLogs(): Observable<ExerciseLog[]>;
-  /** Every logged set for an exercise, across all sessions, oldest first. */
+  /** Every logged set for an exercise's verified alias family; original IDs retained, oldest first. */
   observeExerciseLogs(exerciseId: string): Observable<ExerciseLog[]>;
   getLastPerformedSets(
     exerciseId: string,

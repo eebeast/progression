@@ -25,6 +25,32 @@ function setup(overrides: Partial<WorkoutRepository> = {}) {
   return userEvent.setup();
 }
 
+it.each(['Bench Press', 'Barbell Bench Press'])('shows old %s and new Bench Press IDs in one complete recorded history', async (oldName) => {
+  const now = Date.now();
+  const oldDate = now - 400 * 86_400_000;
+  const user = setup({
+    observeExercises: () => of([
+      { id: 'legacy-bench', name: oldName, createdAt: oldDate },
+      { id: 'current-bench', name: 'Barbell Bench Press', createdAt: now },
+    ]),
+    observeCompletedSessions: () => of([
+      { id: 'old-session', date: oldDate, status: 'completed' },
+      { id: 'new-session', date: now, status: 'completed' },
+    ] as WorkoutSession[]),
+    observeAllLogs: () => of([
+      { id: 'old-set', exerciseId: 'legacy-bench', exerciseName: oldName, sessionId: 'old-session', weight: 50, reps: 8, setNumber: 1, timestamp: oldDate },
+      { id: 'new-set', exerciseId: 'current-bench', exerciseName: 'Barbell Bench Press', sessionId: 'new-session', weight: 80, reps: 6, setNumber: 1, timestamp: now },
+    ] as ExerciseLog[]),
+  });
+  await user.click(within(await screen.findByRole('group', { name: 'Exercise categories' })).getByRole('button', { name: /Chest/ }));
+  const records = screen.getByRole('region', { name: 'Chest exercise records' });
+  expect(within(records).getAllByRole('link', { name: /Bench Press/ })).toHaveLength(1);
+  const charts = within(records).getAllByRole('table', { name: 'Set load recorded values' });
+  expect(charts).toHaveLength(1);
+  expect(charts[0]).toHaveTextContent('50 kg');
+  expect(charts[0]).toHaveTextContent('80 kg');
+});
+
 it('shows BMI from the latest full-history weight independently of dashboard filters', async () => {
   const now = Date.now();
   const user = setup({
@@ -58,11 +84,13 @@ it('shows every reported plan exercise in its category with all recorded loads',
     await user.click(within(screen.getByRole('group', { name: 'Exercise categories' })).getByRole('button', { name: new RegExp(category) }));
     const records = screen.getByRole('region', { name: `${category} exercise records` });
     const expected = userExerciseCategories.filter(([, group]) => group === category);
-    for (const [name] of expected) expect(within(records).getByRole('link', { name })).toBeVisible();
+    // The supplied plan includes both Lateral Raise and its Lateral Raises alias.
+    const movements = expected.filter(([name]) => name !== 'Lateral Raises');
+    for (const [name] of movements) expect(within(records).getByRole('link', { name })).toBeVisible();
     const tables = within(records).getAllByRole('table', { name: 'Set load recorded values' });
-    expect(tables).toHaveLength(expected.length);
+    expect(tables).toHaveLength(movements.length);
+    expect(tables.reduce((count, table) => count + within(table).getAllByRole('row').length - 1, 0)).toBe(expected.length * 2);
     for (const table of tables) {
-      expect(within(table).getAllByRole('row')).toHaveLength(3);
       expect(table).toHaveTextContent('0 kg');
       expect(table).toHaveTextContent('10 kg');
     }

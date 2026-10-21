@@ -20,24 +20,27 @@ it('hides unlogged aliases when the equivalent exercise already has records', ()
   ];
   const logs = [{ exerciseId: 'recorded', exerciseName: 'Barbell Row' }] as ExerciseLog[];
   const rows = categoryExercises('Back', exercises, logs);
-  expect(rows.filter((row) => row.id)).toEqual([{ id: 'recorded', name: 'Barbell Row' }]);
+  expect(rows.filter((row) => row.id)).toEqual([{ id: 'recorded', name: 'Barbell Row', exerciseIds: ['recorded', 'unused'] }]);
   expect(categoryExercises('Back', exercises, []).filter((row) => row.id)).toHaveLength(1);
 });
 
-it('retains both recorded identities when equivalent names have separate history', () => {
+it('includes both original IDs in one history when recorded names are verified aliases', () => {
   const exercises = [
     { id: 'old', name: 'Barbell Bent-over Row', createdAt: 0 },
     { id: 'new', name: 'Barbell Row', createdAt: 0 },
   ];
   const logs = exercises.map(({ id, name }) => ({ exerciseId: id, exerciseName: name })) as ExerciseLog[];
-  expect(categoryExercises('Back', exercises, logs).filter((row) => row.id)).toHaveLength(2);
+  const rows = categoryExercises('Back', exercises, logs).filter((row) => row.id);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].exerciseIds).toEqual(['new', 'old']);
 });
 
-it('includes all catalog exercises and keeps duplicate-name logged IDs distinct', () => {
+it('includes all catalog exercises and retains both duplicate-name IDs in one history', () => {
   const exercises = [{ id: 'a', name: 'Dumbell Curl', createdAt: 0 }, { id: 'b', name: 'Dumbbell Curl', createdAt: 0 }] as Exercise[];
   const logs = exercises.map((exercise) => ({ exerciseId: exercise.id, exerciseName: exercise.name })) as ExerciseLog[];
   const rows = categoryExercises('Arms', exercises, logs);
-  expect(rows.filter((row) => row.id).map((row) => row.id).sort()).toEqual(['a', 'b']);
+  expect(rows.filter((row) => row.id)).toHaveLength(1);
+  expect(rows.find((row) => row.id)?.exerciseIds).toEqual(['a', 'b']);
   expect(rows).toContainEqual({ name: 'Hammer Curl' });
   expect(rows.filter((row) => row.name === 'Dumbbell Curl')).toHaveLength(1);
 });

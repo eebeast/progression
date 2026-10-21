@@ -1,6 +1,7 @@
 import type { Exercise, ExerciseLog, Run, WorkoutSession } from '@/types';
 import { muscleGroup } from './muscleGroups';
 import { EXERCISE_CATEGORIES } from './muscleGroups';
+import { exerciseHistoryIds } from './exerciseHistory';
 
 export interface DateRange { from: number; to: number }
 /** Local calendar boundaries; next-day construction handles 23/25-hour DST days. */
@@ -35,8 +36,9 @@ function selectGym(sessions: WorkoutSession[], logs: ExerciseLog[], exercises: E
   const library = new Map(exercises.map((exercise) => [exercise.id, exercise]));
   const completed = sessions.filter((session) => session.status === 'completed' && inRange(session.date, range) && (!filters.templateId || session.templateId === filters.templateId));
   const ids = new Set(completed.map((session) => session.id));
+  const selectedExercises = filters.exerciseId ? new Set(exerciseHistoryIds(exercises, logs).get(filters.exerciseId) ?? [filters.exerciseId]) : null;
   const sets = logs.filter((log) => ids.has(log.sessionId) && !log.isWarmup &&
-    (!filters.exerciseId || log.exerciseId === filters.exerciseId) &&
+    (!selectedExercises || selectedExercises.has(log.exerciseId)) &&
     (!filters.muscle || muscleGroup(library.get(log.exerciseId), log.exerciseName) === filters.muscle));
   return { library, completed, sets };
 }

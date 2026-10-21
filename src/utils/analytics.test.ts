@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { activityTimeline, calendarRange, categoryActivity, customRange, summarizeGym, summarizeRuns } from './analytics';
 import type { ExerciseLog, Run, WorkoutSession } from '@/types';
 
+it('an exercise filter includes historical sets under its verified alias IDs', () => {
+  const sessions = [{ id: 'old', status: 'completed', date: 1 }, { id: 'new', status: 'completed', date: 2 }] as WorkoutSession[];
+  const exercises = [{ id: 'old-bench', name: 'Bench Press', createdAt: 0 }, { id: 'new-bench', name: 'Barbell Bench Press', createdAt: 1 }];
+  const logs = [{ exerciseId: 'old-bench', exerciseName: 'Bench Press', sessionId: 'old' }, { exerciseId: 'new-bench', exerciseName: 'Barbell Bench Press', sessionId: 'new' }] as ExerciseLog[];
+  expect(summarizeGym(sessions, logs, exercises, { from: 0, to: 3 }, { exerciseId: 'new-bench' })).toMatchObject({ sessions: 2, workingSets: 2 });
+});
+
 describe('calendar analytics', () => {
   it('starts weeks on Monday and uses exclusive local calendar boundaries', () => {
     const range = calendarRange('week', new Date(2026, 9, 18, 12));

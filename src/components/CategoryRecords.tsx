@@ -12,7 +12,7 @@ export function CategoryRecords({ category, exercises, sessions, logs, unit }: {
   const completedIds = new Set(sessions.filter((session) => session.status === 'completed').map((session) => session.id));
   const completedLogs = logs.filter((log) => completedIds.has(log.sessionId) && !log.isWarmup);
   const rows = categoryExercises(category, exercises, completedLogs).map((exercise) => {
-    const points = exercise.id ? exerciseSetLoads(completedLogs, sessions, exercise.id) : [];
+    const points = exercise.id ? exerciseSetLoads(completedLogs, sessions, exercise.exerciseIds ?? exercise.id) : [];
     return { ...exercise, points };
   });
   const recordedCount = rows.filter((exercise) => exercise.points.length > 0).length;
