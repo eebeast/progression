@@ -221,6 +221,12 @@ exist alongside utility and component coverage; do not infer full coverage from 
 build), Chromium browser, and local-Supabase database jobs on pushes/PRs to `main`.
 Keep all green.
 
+Vercel automatic Git deployments are disabled. CI deploys production only on pushes
+to `main` after all three check jobs succeed. Configure `VERCEL_TOKEN`,
+`VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as GitHub repository secrets; production
+`VITE_*` variables are pulled from Vercel. PRs do not deploy previews. See the setup
+guide before changing this gate.
+
 **PWA:** production builds use prompt-based updates. Defer applying updates during
 active workouts or editing routes. Browser tests use the production preview server;
 Vite development mode does not establish offline/service-worker behavior.

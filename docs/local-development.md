@@ -83,6 +83,26 @@ local SDK mocks or the SQL tests.
 
 ## Vercel deployment and database migrations
 
+Automatic Git deployments are disabled in `vercel.json`, including PR previews.
+The `deploy` job in `.github/workflows/ci.yml` deploys only pushes to `main`, after
+`check`, `browser` and `database` all succeed. Failed or cancelled checks prevent
+deployment; PRs run checks without deploying. Existing deployments stay available.
+
+Before merging this configuration, add these GitHub repository secrets under
+**Settings → Secrets and variables → Actions**:
+
+- `VERCEL_TOKEN`: a Vercel access token from your account's token settings.
+- `VERCEL_ORG_ID`: your Vercel team/account ID.
+- `VERCEL_PROJECT_ID`: this Vercel project's ID.
+
+The IDs are available in `.vercel/project.json` after `vercel link`; `.vercel/`
+is ignored by Git. The deployment pulls production environment variables from
+Vercel, builds production artifacts in Actions, and uploads them with
+`--prebuilt`. Keep the `VITE_*` values below in Vercel's Production environment.
+Missing secrets fail the deployment job with a configuration error.
+Require the three CI jobs in GitHub's `main` branch rules to also block unchecked
+merges. This workflow does not create or change those repository rules.
+
 Use Vercel's Vite build: `npm run build`, output directory `dist`. Keep the checked-in
 `vercel.json` route rewrites and service-worker cache header. Set the following
 public variables for each environment you deploy, then create a new build:
