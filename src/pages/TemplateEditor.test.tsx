@@ -44,3 +44,24 @@ it('requires a category for a new custom exercise and persists the selected cate
   expect(bulkCreateExercises).toHaveBeenCalledWith([expect.objectContaining({ name: 'My cable movement', category: 'Back' })]);
   expect(await screen.findByText('Saved')).toBeInTheDocument();
 });
+
+it('requires a choice instead of silently reusing a machine alias for barbell plan entry', async () => {
+  const user = userEvent.setup();
+  const bulkCreateExercises = vi.fn().mockResolvedValue(undefined);
+  const createTemplate = vi.fn().mockResolvedValue('new');
+  const repo = {
+    observeExercises: () => of([{ id: 'machine', name: 'Bench Press', equipment: 'Machine', category: 'Chest', createdAt: 1 }]),
+    bulkCreateExercises, createTemplate,
+  } as unknown as WorkoutRepository;
+  render(<MemoryRouter initialEntries={['/templates/new']}><RepositoryProvider repository={repo}><Routes>
+    <Route path="/templates/new" element={<TemplateEditor />} /><Route path="/templates" element={<p>Saved</p>} />
+  </Routes></RepositoryProvider></MemoryRouter>);
+  await user.type(screen.getByLabelText('Plan name'), 'Barbell day');
+  await user.type(screen.getByLabelText('Exercise name 1'), 'Barbell Bench Press');
+  expect(screen.getByRole('checkbox', { name: 'This is a distinct movement' })).toBeVisible();
+  await user.click(screen.getByRole('checkbox', { name: 'This is a distinct movement' }));
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+  await screen.findByText('Saved');
+  expect(bulkCreateExercises).toHaveBeenCalledWith([expect.objectContaining({ name: 'Barbell Bench Press', category: 'Chest', separateHistory: true })]);
+  expect(createTemplate.mock.calls[0][0].exercises[0].exerciseId).not.toBe('machine');
+});

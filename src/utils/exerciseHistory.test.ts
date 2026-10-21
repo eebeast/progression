@@ -56,3 +56,12 @@ it('reuses a compatible existing alias rather than minting another ID', () => {
   expect(reusableExercise([exercise('x', 'Bench Press', { separateHistory: true })], 'Barbell Bench Press')).toBeUndefined();
   expect(reusableExercise([exercise('x', 'Bench Press', { equipment: 'barbell' }), exercise('y', 'Bench Press', { equipment: 'machine' })], 'Bench Press')).toBeUndefined();
 });
+
+it.each([
+  { equipment: 'Machine' },
+  { category: 'Arms' as const },
+  { primaryMuscle: 'triceps' },
+])('does not reuse a sole incompatible alias: %j', (metadata) => {
+  const existing = exercise('legacy', 'Bench Press', metadata);
+  expect(reusableExercise([existing], 'Barbell Bench Press')).toBeUndefined();
+});
