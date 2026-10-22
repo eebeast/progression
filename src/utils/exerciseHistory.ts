@@ -1,6 +1,16 @@
 import type { Exercise, ExerciseLog } from '@/types';
 import { configuredCategory, exerciseNameKey, muscleGroup } from './muscleGroups';
 
+/** Shared compatibility policy for catalog reuse and read-only history families. */
+function catalogIdentity(exercise: Exercise): string | undefined {
+  if (exercise.separateHistory || !configuredCategory(exercise.name)) return undefined;
+  const name = exerciseNameKey(exercise.name);
+  // Verified catalog names supply legacy equipment only when none was saved.
+  const catalogEquipment = /\bbarbell\b/.test(name) ? 'barbell' : /\bdumbbell\b/.test(name) ? 'dumbbell' : '';
+  const equipment = exercise.equipment?.trim().toLowerCase() || catalogEquipment;
+  return JSON.stringify(['catalog', name, muscleGroup(exercise), equipment]);
+}
+
 /** Matching names may reuse an ID; this never rewrites or merges saved records. */
 export function matchingExercises(exercises: Exercise[], name: string): Exercise[] {
   const known = configuredCategory(name) !== undefined;
@@ -13,6 +23,8 @@ export function matchingExercises(exercises: Exercise[], name: string): Exercise
 export function reusableExercise(exercises: Exercise[], name: string): Exercise | undefined {
   const matches = matchingExercises(exercises, name).filter((exercise) => !exercise.separateHistory);
   if (!matches.length) return undefined;
+  const requested = catalogIdentity({ id: '', name, createdAt: 0 });
+  if (requested && matches.some((exercise) => catalogIdentity(exercise) !== requested)) return undefined;
   const family = exerciseHistoryIds(matches).get(matches[0].id) ?? [];
   if (family.length !== matches.length) return undefined;
   return matches.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))[0];
@@ -32,29 +44,16 @@ export function exerciseHistoryIds(exercises: Exercise[], logs: ExerciseLog[] = 
     definitions.set(id, { id, name, createdAt: 0, separateHistory: keys.size !== 1 });
   }
 
-  const families = new Map<string, Exercise[]>();
+  const families = new Map<string, string[]>();
   for (const exercise of definitions.values()) {
-    const key = !exercise.separateHistory && configuredCategory(exercise.name)
-      ? JSON.stringify(['catalog', exerciseNameKey(exercise.name), muscleGroup(exercise)])
-      : JSON.stringify(['exercise', exercise.id]);
+    const key = catalogIdentity(exercise) ?? JSON.stringify(['exercise', exercise.id]);
     const family = families.get(key) ?? [];
-    family.push(exercise); families.set(key, family);
+    family.push(exercise.id); families.set(key, family);
   }
   const result = new Map<string, string[]>();
-  for (const family of families.values()) {
-    const groups = new Map<string, string[]>();
-    for (const exercise of family) {
-      // The verified catalog name identifies barbell/dumbbell legacy entries. Explicit equipment still wins.
-      const name = exerciseNameKey(exercise.name);
-      const catalogEquipment = /\bbarbell\b/.test(name) ? 'barbell' : /\bdumbbell\b/.test(name) ? 'dumbbell' : '';
-      const key = exercise.equipment?.trim().toLowerCase() || catalogEquipment;
-      const ids = groups.get(key) ?? [];
-      ids.push(exercise.id); groups.set(key, ids);
-    }
-    for (const ids of groups.values()) {
-      ids.sort();
-      for (const id of ids) result.set(id, ids);
-    }
+  for (const ids of families.values()) {
+    ids.sort();
+    for (const id of ids) result.set(id, ids);
   }
   return result;
 }

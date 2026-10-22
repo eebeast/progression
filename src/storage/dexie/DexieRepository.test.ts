@@ -135,6 +135,17 @@ describe('IndexedDB persistence', () => {
 });
 
 describe('canonical exercise management', () => {
+  it.each([{ equipment: 'Machine' }, { category: 'Arms' as const }])('keeps an incompatible legacy Bench Press separate when installing a preset: %j', async (metadata) => {
+    const original = { id: 'legacy-bench', name: 'Bench Press', createdAt: 1, ...metadata };
+    await repo.bulkCreateExercises([original]);
+    await repo.installFourDayPlan();
+    const assignments = (await first(repo.observeTemplates())).flatMap((day) => day.exercises);
+    const bench = assignments.find((row) => row.name === 'Barbell Bench Press')!;
+    expect(bench.exerciseId).not.toBe(original.id);
+    expect((await repo.listExercises()).find((row) => row.id === original.id)).toEqual(original);
+    expect((await repo.listExercises()).find((row) => row.id === bench.exerciseId)?.category).toBe('Chest');
+  });
+
   it.each([
     ['Bench Press', 'Barbell Bench Press'], ['Barbell Row', 'Barbell Bent-over Row'],
     ['EZ Bar Curl', 'EZ Bar Biceps Curl'], ['Overhead Press', 'Standing Overhead Press'],

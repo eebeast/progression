@@ -88,15 +88,21 @@ export default function Workout() {
   const prIds = React.useMemo(() => getRecordSetIds(exerciseLogs), [exerciseLogs]);
 
   // Last workout is a one-shot read; refetch when the exercise changes.
-  const [lastWorkout, setLastWorkout] = React.useState<LastPerformed | null>(null);
+  const [lastPerformed, setLastPerformed] = React.useState<{
+    exerciseId: string; sessionId: string; value: LastPerformed | null;
+  } | null>(null);
+  // The repository resolves compatible history IDs. Tag the request rather than
+  // comparing returned log IDs, which correctly retain their original identities.
+  const lastWorkout = lastPerformed?.exerciseId === current?.exerciseId && lastPerformed?.sessionId === sessionId
+    ? lastPerformed.value : null;
   React.useEffect(() => {
     if (!current) {
-      setLastWorkout(null);
+      setLastPerformed(null);
       return;
     }
     let cancelled = false;
     repo.getLastPerformedSets(current.exerciseId, sessionId).then((r) => {
-      if (!cancelled) setLastWorkout(r);
+      if (!cancelled) setLastPerformed({ exerciseId: current.exerciseId, sessionId, value: r });
     });
     return () => {
       cancelled = true;
@@ -124,7 +130,6 @@ export default function Workout() {
     } else if (
       lastWorkout &&
       lastWorkout.sets.length > 0 &&
-      lastWorkout.sets[0].exerciseId === current.exerciseId &&
       (lastWorkout.sets[0].metric ?? 'reps') === (current.metric ?? 'reps')
     ) {
       setWeight(lastWorkout.sets[0].weight);
