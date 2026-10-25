@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RepositoryProvider } from '@/storage/RepositoryProvider';
-import { of, type Observable, type Observer, type WorkoutRepository } from '@/storage/repository';
+import { of, type LastPerformed, type Observable, type Observer, type WorkoutRepository } from '@/storage/repository';
 import { DEFAULT_SETTINGS } from '@/storage/defaults';
 import type { TemplateExercise, WorkoutSession, WorkoutTemplate } from '@/types';
 import Workout from './Workout';
@@ -93,4 +93,46 @@ it('prevents double saves and keeps entry values available after a failed local 
   expect(screen.getByRole('alert')).toHaveTextContent('Storage full');
   expect(screen.getByRole('button', { name: 'Save set' })).toBeEnabled();
   expect(screen.getByRole('textbox', { name: 'Reps' })).toHaveValue('1');
+});
+
+it('prefills compatible alias history and never carries it into another exercise while its read is pending', async () => {
+  const user = userEvent.setup();
+  let resolveNext!: (value: LastPerformed | null) => void;
+  const previous: LastPerformed = {
+    session: { ...session, id: 'previous', status: 'completed' },
+    sets: [{ id: 'old-set', exerciseId: 'old-bench', exerciseName: 'Bench Press', sessionId: 'previous', weight: 50, reps: 8, setNumber: 1, timestamp: 1 }],
+  };
+  const getLastPerformedSets = vi.fn((id: string) => id === 'current-bench'
+    ? Promise.resolve(previous)
+    : new Promise<LastPerformed | null>((resolve) => { resolveNext = resolve; }));
+  showWorkout({ ...session, exercises: [
+    { ...exercises[0], exerciseId: 'current-bench', name: 'Barbell Bench Press' },
+    { ...exercises[0], exerciseId: 'row', name: 'Barbell Row', order: 1 },
+  ] }, undefined, undefined, { getLastPerformedSets });
+  await screen.findByText('50kg × 8');
+  await user.click(screen.getByRole('button', { name: 'Start exercise' }));
+  expect(screen.getByRole('textbox', { name: 'Weight' })).toHaveValue('50');
+  expect(screen.getByRole('textbox', { name: 'Reps' })).toHaveValue('8');
+  await user.click(screen.getAllByRole('button', { name: 'Next exercise' })[0]);
+  await user.click(screen.getByRole('button', { name: 'Start exercise' }));
+  expect(screen.getByRole('textbox', { name: 'Weight' })).toHaveValue('0');
+  expect(screen.queryByText('50kg × 8')).not.toBeInTheDocument();
+  // Both movements came from the same prior session; its ID cannot identify the response.
+  await act(async () => { resolveNext({ ...previous, sets: [{ ...previous.sets[0], id: 'row-set', exerciseId: 'row', exerciseName: 'Barbell Row', weight: 30, reps: 12 }] }); });
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Weight' })).toHaveValue('30'));
+  expect(screen.getByRole('textbox', { name: 'Reps' })).toHaveValue('12');
+});
+
+it('does not prefill timed alias history into a reps assignment', async () => {
+  const user = userEvent.setup();
+  showWorkout(session, undefined, undefined, {
+    getLastPerformedSets: async () => ({
+      session: { ...session, id: 'previous', status: 'completed' },
+      sets: [{ id: 'timed', exerciseId: 'legacy', exerciseName: 'Original squat', sessionId: 'previous', weight: 20, reps: 60, metric: 'time', setNumber: 1, timestamp: 1 }],
+    }),
+  });
+  await screen.findByText('20kg × 1m');
+  await user.click(screen.getByRole('button', { name: 'Start exercise' }));
+  expect(screen.getByRole('textbox', { name: 'Weight' })).toHaveValue('0');
+  expect(screen.getByRole('textbox', { name: 'Reps' })).toHaveValue('0');
 });
