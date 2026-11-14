@@ -81,6 +81,7 @@ jobs:
     needs: [check, browser, database]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: Production
     permissions:
       contents: read
     env:
