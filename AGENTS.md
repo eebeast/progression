@@ -100,6 +100,15 @@ concurrent set numbering, and session snapshots.
 
 ## Feature map
 
+- **Plan files** — Plans page offers per-plan/all-plan JSON export and import with
+  preview (`components/PlanTransfer.tsx`, `utils/planSharing.ts`). Format:
+  `{ app: 'progression-plans', version: 1, plans: SharedPlanInput[] }`; no local IDs,
+  settings, or history. Imports append copies atomically via `repo.importPlans`,
+  reuse exercise names case-insensitively, and retain existing data/order. Reimporting
+  intentionally adds copies. Missing `metric` defaults to reps; missing
+  `estimatedMinutes` uses the plan editor's 60-minute default (editable).
+  `examples/workout-a-b.json` is a ready-to-import plan file. Full backup restore
+  in Settings remains a separate, destructive operation.
 - **Warm-up sets** — `ExerciseLog.isWarmup`; `components/WarmupToggle.tsx`; filtered out
   of targets/progress/PRs in `pages/Workout.tsx` and rendered muted with a "W" in
   `SetRow`/`HistoryDetail`/`ExerciseHistory`.

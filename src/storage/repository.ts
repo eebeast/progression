@@ -80,6 +80,18 @@ export interface TemplateInput {
   exercises: TemplateExercise[];
 }
 
+/** Portable plan content: local exercise/template IDs never leave the device. */
+export interface SharedPlanInput {
+  name: string;
+  estimatedMinutes?: number;
+  exercises: {
+    name: string;
+    targetSets: number;
+    targetRepRange: string;
+    metric?: Metric;
+  }[];
+}
+
 export interface SessionMeta {
   notes: string;
   feeling: Feeling | null;
@@ -120,6 +132,8 @@ export interface WorkoutRepository {
   deleteTemplate(id: string): Promise<void>;
   /** Persist a new program order: each id's `order` becomes its array index. */
   reorderTemplates(orderedIds: string[]): Promise<void>;
+  /** Atomically append plan copies, reusing library exercises by name. */
+  importPlans(plans: SharedPlanInput[]): Promise<void>;
 
   // sessions
   observeActiveSession(): Observable<WorkoutSession | null>;

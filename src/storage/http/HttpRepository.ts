@@ -26,6 +26,7 @@ import type {
   NewSetInput,
   Observable,
   SessionMeta,
+  SharedPlanInput,
   TemplateInput,
   WorkoutRepository,
 } from '@/storage/repository';
@@ -81,6 +82,9 @@ export class HttpRepository implements WorkoutRepository {
     return TODO();
   }
   reorderTemplates(_orderedIds: string[]): Promise<void> {
+    return TODO();
+  }
+  importPlans(_plans: SharedPlanInput[]): Promise<void> {
     return TODO();
   }
 
