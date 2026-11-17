@@ -29,6 +29,7 @@ import type {
   NewSetInput,
   Observable,
   SessionMeta,
+  SharedPlanInput,
   TemplateInput,
   WorkoutRepository,
 } from '@/storage/repository';
@@ -538,6 +539,41 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       await this.db.transaction('rw', this.db.templates, async () => {
         await Promise.all(orderedIds.map((id, i) => this.db.templates.update(id, { order: i })));
     });
+    });
+  }
+
+  async importPlans(plans: SharedPlanInput[]): Promise<void> {
+    await this.db.transaction('rw', this.db.templates, this.db.exercises, async () => {
+      const library = await this.db.exercises.toArray();
+      const byName = new Map(library.map((exercise) => [exercise.name.trim().toLowerCase(), exercise]));
+      const existing = await this.db.templates.toArray();
+      let order = existing.reduce((max, template) => Math.max(max, template.order), -1) + 1;
+      const now = Date.now();
+      for (const plan of plans) {
+        const exercises: TemplateExercise[] = [];
+        for (const [index, input] of plan.exercises.entries()) {
+          const name = input.name.trim();
+          const key = name.toLowerCase();
+          let exercise = byName.get(key);
+          if (!exercise) {
+            exercise = { id: newId(), name, createdAt: now };
+            await this.db.exercises.add(exercise);
+            byName.set(key, exercise);
+          }
+          exercises.push({
+            exerciseId: exercise.id,
+            name: exercise.name,
+            targetSets: input.targetSets,
+            targetRepRange: input.targetRepRange,
+            metric: input.metric ?? 'reps',
+            order: index,
+          });
+        }
+        await this.db.templates.add({
+          id: newId(), name: plan.name, estimatedMinutes: plan.estimatedMinutes ?? 60,
+          order: order++, exercises, createdAt: now, updatedAt: now,
+        });
+      }
     });
   }
 
