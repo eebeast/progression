@@ -124,10 +124,12 @@ export interface WorkoutRepository {
 
   // templates
   installFourDayPlan(): Promise<void>;
+  installThreeDayPlan(): Promise<void>;
   observeTemplates(includeArchived?: boolean): Observable<WorkoutTemplate[]>;
   getTemplate(id: string): Promise<WorkoutTemplate | undefined>;
   observeTemplate(id: string): Observable<WorkoutTemplate | undefined>;
   createTemplate(input: TemplateInput): Promise<string>;
+  duplicateTemplate(id: string): Promise<string>;
   updateTemplate(id: string, patch: TemplateInput): Promise<void>;
   deleteTemplate(id: string): Promise<void>;
   /** Persist a new program order: each id's `order` becomes its array index. */

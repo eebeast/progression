@@ -29,7 +29,7 @@ obsolete proposals from active docs and keep validation evidence separate from i
 ## User Stories
 
 1. As a lifter, I want to open Today and see my training days, so that I can start logging quickly.
-2. As a lifter, I want the supplied four-day Pull, Push, Legs + Abs and Mix preset, so that my routine is already configured.
+2. As a lifter, I want the supplied four-day and three-day training presets, so that I can start with either routine.
 3. As a returning user, I want installing a preset to retain previous plans and history, so that new configuration does not erase my records.
 4. As a lifter, I want to start any available day and reorder the rotation, so that my schedule remains flexible.
 5. As a lifter, I want plain exercise-name, sets and reps inputs in plan editing, so that I can maintain a day without a complex picker.
@@ -80,6 +80,7 @@ obsolete proposals from active docs and keep validation evidence separate from i
 50. As a future AI agent, I want implemented features separated from verification gaps, so that I do not claim unsupported release readiness or rebuild existing work.
 51. As a future AI agent, I want the repository seam and testing patterns documented, so that changes preserve local-first behavior and are testable without new abstractions.
 52. As a maintainer, I want small commits and accurate change reports, so that later agents can review and continue work safely.
+53. As a lifter, I want to duplicate a plan day, so that I can make a similar day without rebuilding its exercise list.
 
 ## Implementation Decisions
 
@@ -96,6 +97,8 @@ obsolete proposals from active docs and keep validation evidence separate from i
   not enlarge the document or create horizontal mobile overflow.
 - Keep the requested four-day preset and plain plan-entry flow. Rest-timer controls,
   workout add-exercise forms and exercise-name dropdowns remain removed.
+- Plan duplication creates a new active day with a unique name and assignment IDs,
+  while retaining its exercises and prescriptions; existing sessions remain unchanged.
 - Preserve stable exercise IDs, assignment IDs and session prescription/name
   snapshots. Alias normalization is for catalog matching/display, not automatic merging.
 - Known catalog aliases can share a read-only all-history view across old/new IDs.
