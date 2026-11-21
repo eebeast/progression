@@ -17,7 +17,7 @@ import type {
   WorkoutTemplate,
 } from '@/types';
 import { newId } from '@/utils/format';
-import { DEFAULT_SETTINGS, PROGRAM } from '@/storage/defaults';
+import { DEFAULT_SETTINGS, PROGRAM, THREE_DAY_PROGRAM } from '@/storage/defaults';
 import { configuredCategory, EXERCISE_CATEGORIES } from '@/utils/muscleGroups';
 import { exerciseHistoryIds, reusableExercise } from '@/utils/exerciseHistory';
 import type {
@@ -456,13 +456,21 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
   /* ----------------------------- templates ----------------------------- */
 
   async installFourDayPlan(): Promise<void> {
+    return this.installProgram(PROGRAM);
+  }
+
+  async installThreeDayPlan(): Promise<void> {
+    return this.installProgram(THREE_DAY_PROGRAM);
+  }
+
+  private async installProgram(program: typeof PROGRAM): Promise<void> {
     await this.mutate(async () => {
       const now = Date.now();
       const templates = await this.db.templates.toArray();
       for (const template of templates) await this.db.templates.update(template.id, { archivedAt: now });
       const library = await this.db.exercises.toArray();
-      for (const [order, day] of PROGRAM.entries()) {
-        const prior = templates.find((template) => template.presetDay === order);
+      for (const [order, day] of program.entries()) {
+        const prior = templates.find((template) => template.presetDay === order && template.name === day.name);
         const exercises: TemplateExercise[] = [];
         for (const [position, assignment] of day.exercises.entries()) {
           // Reuse a verified alias family. Distinct/ambiguous movements remain untouched.
@@ -511,6 +519,31 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
       };
       await this.db.templates.put(template);
       return template.id;
+    });
+  }
+
+  async duplicateTemplate(id: string): Promise<string> {
+    return this.mutate(async () => {
+      const source = await this.db.templates.get(id);
+      if (!source) throw new Error('Plan could not be found.');
+      const templates = await this.db.templates.toArray();
+      const names = new Set(templates.map((template) => template.name.toLocaleLowerCase()));
+      const baseName = `${source.name} (Copy)`;
+      let name = baseName;
+      let copyNumber = 2;
+      while (names.has(name.toLocaleLowerCase())) name = `${source.name} (Copy ${copyNumber++})`;
+      const now = Date.now();
+      const duplicate: WorkoutTemplate = {
+        id: newId(),
+        name,
+        order: Math.max(-1, ...templates.filter((template) => !template.archivedAt).map((template) => template.order)) + 1,
+        estimatedMinutes: source.estimatedMinutes,
+        exercises: source.exercises.map((exercise) => ({ ...exercise, assignmentId: newId() })),
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.db.templates.add(duplicate);
+      return duplicate.id;
     });
   }
 

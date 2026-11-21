@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Download, LayoutGrid, Plus } from 'lucide-react';
+import { ChevronRight, Copy, Download, LayoutGrid, Plus } from 'lucide-react';
 import { useRepo } from '@/storage/RepositoryProvider';
 import { useObservable } from '@/hooks/useObservable';
 import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/FeelingPicker';
 import { PlanTransfer } from '@/components/PlanTransfer';
-import { PROGRAM } from '@/storage/defaults';
 import { downloadPlans } from '@/utils/planSharing';
 import type { WorkoutTemplate } from '@/types';
 
@@ -15,23 +14,22 @@ export default function Templates() {
   const navigate = useNavigate();
   const repo = useRepo();
   const [busy, setBusy] = React.useState(false);
+  const [duplicating, setDuplicating] = React.useState<string | null>(null);
   const [error, setError] = React.useState('');
   const [exportError, setExportError] = React.useState('');
   const all = useObservable(() => repo.observeTemplates(true), [repo]) ?? ([] as WorkoutTemplate[]);
   const templates = all.filter((day) => !day.archivedAt);
   const previous = all.filter((day) => !!day.archivedAt);
-  const matches = templates.length === PROGRAM.length && templates.every((day, index) =>
-    day.name === PROGRAM[index].name &&
-    JSON.stringify(day.exercises.map((exercise) => [exercise.name, exercise.targetSets, exercise.targetRepRange])) ===
-      JSON.stringify(PROGRAM[index].exercises.map((exercise) => [exercise.name, exercise.targetSets, exercise.targetRepRange])));
-
-  const useProgram = async () => {
-    if (busy || !window.confirm('Use your four-day Pull, Push, Legs + Abs and Mix plan? A backup will download first. Existing days are kept under Previous days; logged workouts stay unchanged.')) return;
+  const applyPreset = async (preset: 'four-day' | 'three-day') => {
+    if (busy) return;
+    const title = preset === 'four-day' ? 'four-day plan' : 'three-day Push / Pull / Legs plan';
+    if (!window.confirm(`Use the ${title}? A backup will download first. Existing days are kept under Previous days; logged workouts stay unchanged.`)) return;
     setBusy(true);
     setError('');
     try {
       await repo.exportData();
-      await repo.installFourDayPlan();
+      if (preset === 'four-day') await repo.installFourDayPlan();
+      else await repo.installThreeDayPlan();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Plan could not be loaded.');
     } finally {
@@ -49,6 +47,26 @@ export default function Templates() {
             {archived && <p className="text-sm text-muted-foreground">Previous plan</p>}
           </div>
           <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </button>
+        <button
+          type="button"
+          aria-label={`Duplicate ${template.name}`}
+          disabled={busy || duplicating !== null}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary hover:bg-muted disabled:opacity-40"
+          onClick={async () => {
+            if (duplicating) return;
+            setDuplicating(template.id);
+            setError('');
+            try {
+              await repo.duplicateTemplate(template.id);
+            } catch (reason) {
+              setError(reason instanceof Error ? reason.message : 'Plan could not be duplicated.');
+            } finally {
+              setDuplicating(null);
+            }
+          }}
+        >
+          <Copy className="h-5 w-5" />
         </button>
         <button
           type="button"
@@ -83,10 +101,10 @@ export default function Templates() {
       <PageHeader title="Plans" right={<button type="button" aria-label="New plan" onClick={() => navigate('/templates/new')} className="flex h-11 w-11 items-center justify-center rounded-full text-primary hover:bg-muted"><Plus className="h-6 w-6" /></button>} />
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-5 py-5">
         <PlanTransfer templates={templates} />
-        {!matches && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-          <div><p className="font-semibold">Your four-day plan</p><p className="mt-1 text-sm text-muted-foreground">Pull · Push · Legs + Abs · Mix</p></div>
-          <Button disabled={busy} onClick={useProgram}>Use four-day plan</Button>
-        </div>}
+        <div className="flex justify-end gap-2" role="group" aria-label="Choose a plan preset">
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => applyPreset('four-day')}>Use 4-day plan</Button>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => applyPreset('three-day')}>Use 3-day PPL</Button>
+        </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {exportError && <p role="alert" className="text-sm text-destructive">{exportError}</p>}
         {templates.length === 0 ? (
@@ -104,7 +122,6 @@ export default function Templates() {
         <details className="text-sm text-muted-foreground">
           <summary className="cursor-pointer">Plan options</summary>
           <div className="mt-3 flex flex-col items-start gap-3">
-            {matches && <Button variant="outline" disabled={busy} onClick={useProgram}>Reset to four-day plan</Button>}
             <Button variant="outline" onClick={() => navigate('/templates/new')}>Add another day</Button>
             {!!previous.length && <div className="w-full"><p className="mb-2 font-medium">Previous days</p><div className="grid gap-4 md:grid-cols-2">{previous.map((day, index) => renderPlan(day, index, true))}</div></div>}
           </div>

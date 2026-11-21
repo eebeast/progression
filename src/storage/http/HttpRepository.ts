@@ -63,6 +63,7 @@ export class HttpRepository implements WorkoutRepository {
 
   // templates
   installFourDayPlan(): Promise<void> { return TODO(); }
+  installThreeDayPlan(): Promise<void> { return TODO(); }
   observeTemplates(_includeArchived?: boolean): Observable<WorkoutTemplate[]> {
     return TODO();
   }
@@ -73,6 +74,9 @@ export class HttpRepository implements WorkoutRepository {
     return TODO();
   }
   createTemplate(_input: TemplateInput): Promise<string> {
+    return TODO();
+  }
+  duplicateTemplate(_id: string): Promise<string> {
     return TODO();
   }
   updateTemplate(_id: string, _patch: TemplateInput): Promise<void> {
