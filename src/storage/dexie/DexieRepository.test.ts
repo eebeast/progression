@@ -230,7 +230,7 @@ it('loads the requested four-day plan without changing history and reuses shared
   expect(days.map((day) => day.name)).toEqual(['Pull', 'Legs + Abs', 'Mix', 'Push']);
   expect(days.map((day) => day.exercises.length)).toEqual([7, 8, 9, 6]);
   expect(days[0].exercises[0]).toMatchObject({ name: 'Weighted Pull-ups', targetSets: 3, targetRepRange: '6–10' });
-  expect(days[2].exercises[2]).toMatchObject({ name: 'Dumbbell Lunges', targetRepRange: '10 each leg' });
+  expect(days[1].exercises[2]).toMatchObject({ name: 'Dumbbell Lunges', targetRepRange: '10 each leg' });
   expect(days[2].exercises.find((e) => e.name === 'Dumbbell Lateral Raise')!.exerciseId)
     .toBe(days[3].exercises.find((e) => e.name === 'Dumbbell Lateral Raise')!.exerciseId);
   expect(days[1].exercises.find((e) => e.name === 'Ab Roller')!.exerciseId)
