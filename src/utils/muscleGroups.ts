@@ -22,6 +22,7 @@ export const EXERCISE_CATALOG: { name: string; category: ExerciseCategory }[] = 
   { name: 'Pull-ups', category: 'Back' },
   { name: 'Face Pull', category: 'Shoulder' },
   { name: 'Barbell Row', category: 'Back' },
+  { name: 'T-Bar Row', category: 'Back' },
   { name: 'One-arm Dumbbell Row', category: 'Back' },
   { name: 'Dumbbell Row', category: 'Back' },
   { name: 'Reverse Fly', category: 'Shoulder' },
