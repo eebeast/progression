@@ -87,9 +87,10 @@ New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at 
 `Workout` uses that snapshot, including an intentionally empty list; legacy sessions
 without it fall back to their current template. Never backfill historical prescriptions
 from a plan that may have changed. This optional field requires no schema bump.
-The default program is the user’s four-day Pull / Push / Legs + Abs / Mix plan.
-`installFourDayPlan` archives previous days rather than deleting them; `observeTemplates`
-hides archived days unless explicitly requested. Keep exercise entry as one plain name
+The default program is the updated four-day Pull / Legs + Abs / Mix / Push plan.
+Plans also offers a three-day Push / Pull / Legs preset.
+`installFourDayPlan` and `installThreeDayPlan` archive previous days rather than deleting
+them; `observeTemplates` hides archived days unless explicitly requested. Keep exercise entry as one plain name
 field with sets/reps: no dropdown, datalist or autocomplete suggestions. Reuse an
 unambiguous matching exercise/verified catalog alias internally. The workout screen shows the session's planned
 exercises without an add-exercise form. Rest timer controls are removed from workout
@@ -109,6 +110,8 @@ concurrent set numbering, and session snapshots.
   `estimatedMinutes` uses the plan editor's 60-minute default (editable).
   `examples/workout-a-b.json` is a ready-to-import plan file. Full backup restore
   in Settings remains a separate, destructive operation.
+  Each plan card can also duplicate a day into a new active plan with a unique name
+  and assignment IDs while retaining its exercises and prescriptions.
 - **Warm-up sets** — `ExerciseLog.isWarmup`; `components/WarmupToggle.tsx`; filtered out
   of targets/progress/PRs in `pages/Workout.tsx` and rendered muted with a "W" in
   `SetRow`/`HistoryDetail`/`ExerciseHistory`.

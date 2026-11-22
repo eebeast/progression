@@ -21,13 +21,16 @@ npm run preview -- --host 127.0.0.1 --port 4173
 Open <http://127.0.0.1:4173/> online once. The service worker then prepares the
 application shell for offline use. These two ports have separate browser storage.
 
-## Your four-day plan
+## Plan presets
 
-New local databases start with Pull, Push, Legs + Abs, and Mix in that order,
-using the exact exercise names and prescriptions supplied in the conversation.
-Existing databases are not overwritten. Open **Plans → Use four-day plan** to
-apply the preset after downloading a backup. Old days remain under **Plan options
+New local databases start with the four-day preset: Pull, Legs + Abs, Mix, and Push,
+using the exercise names and prescriptions in the supplied plan file. A three-day
+Push / Pull / Legs preset is also available. Existing databases are not overwritten.
+Open Plans and choose **Use 4-day plan** or **Use 3-day PPL** to apply a preset after
+downloading a backup. Old days remain under **Plan options
 → Previous days** and logged workouts retain their names and prescriptions.
+Use the copy action on a plan card to add a new day with the same exercises and
+prescriptions; the copy can then be edited independently.
 
 Day editing keeps the original name/sets/reps flow. The single exercise-name field
 has no dropdown or autocomplete suggestions and keeps stable exercise identity behind the UI.
