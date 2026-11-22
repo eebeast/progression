@@ -124,13 +124,14 @@ test('old and new Bench Press IDs share every recorded load and exercise history
   await page.goto('/activity');
   await page.getByRole('group', { name: 'Exercise categories' }).getByRole('button', { name: /Chest/ }).click();
   const records = page.getByRole('region', { name: 'Chest exercise records' });
-  await expect(records.getByRole('link', { name: /Bench Press/ })).toHaveCount(1);
+  const barbellBench = records.getByRole('link', { name: 'Barbell Bench Press', exact: true });
+  await expect(barbellBench).toHaveCount(1);
   const history = records.getByRole('table', { name: 'Set load recorded values' });
   await expect(history).toHaveCount(1);
   await expect(history.getByRole('row')).toHaveCount(3);
   await expect(history).toContainText('50 kg');
   await expect(history).toContainText('80 kg');
-  await records.getByRole('link', { name: /Bench Press/ }).click();
+  await barbellBench.click();
   await expect(page.getByText('50kg × 8', { exact: true })).toBeVisible();
   await expect(page.getByText('80kg × 6', { exact: true })).toBeVisible();
   await expect(page.getByText('Not enough data yet')).toHaveCount(0);
