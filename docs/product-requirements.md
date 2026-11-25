@@ -36,7 +36,7 @@ obsolete proposals from active docs and keep validation evidence separate from i
 6. As a lifter, I want each new exercise to have a category, so that its records appear under an understandable group.
 7. As a lifter, I want familiar exercise aliases to resolve consistently, so that spelling variations do not hide my records.
 8. As a lifter, I want recorded exercise IDs kept separate unless I explicitly merge them, so that distinct histories are not silently combined.
-9. As a lifter, I want changes to a plan to leave started workout prescriptions intact, so that past sessions retain their meaning.
+9. As a lifter, I want plan edits to update a matching in-progress workout while completed sessions retain their final prescriptions.
 10. As a lifter, I want large weight/reps controls and clear save feedback, so that I can log between sets on a phone.
 11. As a lifter, I want timed sets to preserve seconds, so that holds and duration exercises are recorded correctly.
 12. As a lifter, I want warm-ups kept in history but excluded from working-set records and charts, so that summaries reflect actual working sets.

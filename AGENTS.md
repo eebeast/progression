@@ -84,9 +84,11 @@ Key record shapes: `ExerciseLog` (a logged set: `weight`, `reps` [= seconds when
 settings rows remain valid without it.
 
 New sessions snapshot ordered plan assignments in `WorkoutSession.exercises` at start.
-`Workout` uses that snapshot, including an intentionally empty list; legacy sessions
-without it fall back to their current template. Never backfill historical prescriptions
-from a plan that may have changed. This optional field requires no schema bump.
+`Workout` uses that snapshot, including an intentionally empty list. Editing a plan
+updates matching in-progress session snapshots; completed session snapshots stay fixed.
+Legacy sessions without a snapshot fall back to their current template. Never backfill
+completed historical prescriptions from a plan that may have changed. This optional
+field requires no schema bump.
 The default program is the updated four-day Pull / Legs + Abs / Mix / Push plan.
 Plans also offers a three-day Push / Pull / Legs preset.
 `installFourDayPlan` and `installThreeDayPlan` archive previous days rather than deleting

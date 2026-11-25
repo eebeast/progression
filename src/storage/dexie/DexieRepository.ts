@@ -551,13 +551,25 @@ export class DexieRepository implements WorkoutRepository, SyncRepository {
     return this.mutate(async () => {
       const existing = await this.db.templates.get(id);
       if (!existing) return;
-      await this.db.templates.put({
+      const exercises = patch.exercises.map((exercise) => ({
+        ...exercise,
+        assignmentId: exercise.assignmentId ?? newId(),
+      }));
+      const updated = {
         ...existing,
         name: patch.name,
         estimatedMinutes: patch.estimatedMinutes,
-        exercises: patch.exercises,
+        exercises,
         updatedAt: Date.now(),
-    });
+      };
+      await this.db.templates.put(updated);
+      const activeSessions = await this.db.sessions.where('status').equals('active')
+        .filter((session) => session.templateId === id && !!session.exercises)
+        .toArray();
+      await Promise.all(activeSessions.map((session) => this.db.sessions.update(session.id, {
+        templateName: updated.name,
+        exercises: structuredClone(exercises),
+      })));
     });
   }
 
