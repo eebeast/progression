@@ -61,7 +61,7 @@ export interface WorkoutSession {
   id: string;
   templateId: string;
   templateName: string;
-  /** Plan at start time; absent on legacy sessions. Never rebuilt on import. */
+  /** Plan snapshot; active sessions follow plan edits, completed snapshots stay fixed. */
   exercises?: TemplateExercise[];
   restEndsAt?: number | null;
   date: number;

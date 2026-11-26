@@ -31,6 +31,8 @@ downloading a backup. Old days remain under **Plan options
 → Previous days** and logged workouts retain their names and prescriptions.
 Use the copy action on a plan card to add a new day with the same exercises and
 prescriptions; the copy can then be edited independently.
+Editing a plan also updates its active workout; completed workouts keep their final
+exercise list and prescriptions.
 
 Day editing keeps the original name/sets/reps flow. The single exercise-name field
 has no dropdown or autocomplete suggestions and keeps stable exercise identity behind the UI.

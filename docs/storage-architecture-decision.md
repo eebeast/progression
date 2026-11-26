@@ -59,7 +59,9 @@ receipts, account state and an ordered change journal (see refinement below).
 All entity keys include ownership, and child relationships verify the same owner.
 Preserve source IDs, including non-UUID legacy IDs. Template assignments stay ordered
 JSON within a template protected by its revision. New sessions snapshot exercises
-and prescriptions; logged exercise/session names retain historical meaning.
+and prescriptions; editing a source plan updates matching active session snapshots,
+while completion freezes the final snapshot. Logged exercise/session names retain
+historical meaning.
 
 Mutations use authenticated SQL RPCs, version checks and receipts in one transaction. RPCs derive ownership from `auth.uid()`, never from a submitted owner ID. Retain tombstones and conflict payloads. Serialize writes per account before assigning change sequence values so a pull cursor cannot skip a transaction that commits later. Pull pages use a stable cursor. New clients bootstrap through that same ordered journal. Do not expose direct write access that bypasses this protocol. Enable RLS and test unauthenticated and cross-account denial.
 

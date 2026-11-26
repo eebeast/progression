@@ -53,6 +53,9 @@ export default function Workout() {
   );
 
   const [index, setIndex] = React.useState(0);
+  React.useEffect(() => {
+    setIndex((currentIndex) => Math.min(currentIndex, Math.max(0, exercises.length - 1)));
+  }, [exercises.length]);
   const current = exercises[index];
 
   // Per-session set of exercises the user has explicitly started.
@@ -360,10 +363,9 @@ export default function Workout() {
                     onChange={setReps}
                     step={5}
                     min={0}
-                    autoFocus
                   />
                 ) : (
-                  <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} autoFocus />
+                  <Stepper label="Reps" value={reps} onChange={setReps} step={1} min={0} />
                 )}
               </div>
             </div>
